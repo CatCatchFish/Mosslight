@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>微光防线 · 候选怪物</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #142521; color: #edf1dd; font: 15px/1.55 system-ui, sans-serif; }
+    main { width: min(880px, calc(100% - 28px)); margin: 26px auto; }
+    h1 { margin: 0 0 14px; font-size: clamp(23px, 4vw, 34px); }
+    h2 { margin: 0; font-size: 20px; }
+    p { margin: 6px 0 12px; color: #c9dac8; }
+    label { display: inline-flex; align-items: center; gap: 6px; }
+    select, button { font: inherit; color: inherit; background: #253f35; border: 1px solid #6b937d; border-radius: 5px; padding: 5px 9px; }
+    button { cursor: pointer; }
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+    .inspector { display: grid; grid-template-columns: 144px 1fr; align-items: center; gap: 14px; margin: 14px 0; }
+    #pose { width: 144px; height: 144px; background: radial-gradient(#446454, #294035 73%); border-radius: 6px; image-rendering: pixelated; }
+    #arena { display: block; width: 100%; aspect-ratio: 2; border: 1px solid #556b59; border-radius: 6px; }
+    #status { min-height: 25px; }
+    @media (max-width: 480px) { .inspector { grid-template-columns: 110px 1fr; gap: 10px; } #pose { width: 110px; height: 110px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>候选怪物</h1>
+    <div class="controls">
+      <label>候选 <select id="enemy"></select></label>
+      <label>朝向 <select id="facing"><option value="east">东</option><option value="south">南</option><option value="west">西</option><option value="north">北</option></select></label>
+      <label>动作 <select id="motion"><option value="walk">移动</option><option value="attack">攻击 / 技能</option></select></label>
+    </div>
+    <section class="inspector" aria-labelledby="name">
+      <canvas id="pose" width="64" height="64" aria-label="四向动作预览"></canvas>
+      <div><h2 id="name"></h2><p id="mechanic"></p></div>
+    </section>
+    <div class="controls">
+      <button id="replay" type="button">重播演练</button>
+      <label><input id="defenses" type="checkbox" checked> 加入防御</label>
+    </div>
+    <p id="status" aria-live="polite">加载素材中</p>
+    <canvas id="arena" aria-label="候选怪物实战演练"></canvas>
+  </main>
+  <script type="module" src="./preview.ts"></script>
+</body>
+</html>

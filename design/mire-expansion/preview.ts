@@ -1,0 +1,195 @@
+import { paintSprite, stamp } from "../../src/render/pixel-sprite.ts";
+import { shadeSprite } from "../../src/render/tower-life.ts";
+import { artFor, lanternMoth, mudskipper, paddleOtter, reedPost, reedSpider, reedSpiderling,
+  saltCaster, shieldCrayfish, sluiceDragon, stoneClam, whiskerCatfish } from "./art.ts";
+import type { Art, ArtOptions, OtterPose, Painter, View } from "./art.ts";
+
+const width = 984;
+const paper = "#18282a";
+const text = "#eeecda";
+const secondary = "#abc0ae";
+const accent = "#d3d99c";
+
+function surface(id: string, height: number) {
+  const canvas = document.getElementById(id) as HTMLCanvasElement;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = paper;
+  ctx.fillRect(0, 0, width, height);
+  return ctx;
+}
+
+function label(ctx: CanvasRenderingContext2D, words: string, x: number, y: number, size = 16,
+  color = text, weight = 500) {
+  ctx.font = `${weight} ${size}px system-ui, sans-serif`;
+  ctx.fillStyle = color;
+  ctx.fillText(words, x, y);
+}
+
+function heading(ctx: CanvasRenderingContext2D, name: string, note: string) {
+  ctx.fillStyle = accent;
+  ctx.fillRect(27, 25, 4, 53);
+  label(ctx, name, 44, 50, 28, text, 720);
+  label(ctx, note, 45, 73, 14, secondary);
+}
+
+const backdrops = [
+  ["#405a4e", "#53694f", "#778867", "#314e49"],
+  ["#434c4d", "#505c53", "#7d896e", "#344b4d"],
+  ["#43564b", "#546257", "#748579", "#314a47"],
+] as const;
+
+function tile(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number,
+  color: number, shadow: number, seed: number) {
+  const [dark, bank, fleck, water] = backdrops[color % backdrops.length];
+  ctx.fillStyle = dark;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = bank;
+  ctx.beginPath();
+  ctx.moveTo(x, y + h*.76);
+  ctx.lineTo(x+w*.22, y+h*.63);
+  ctx.lineTo(x+w*.56, y+h*.67);
+  ctx.lineTo(x+w*.87, y+h*.56);
+  ctx.lineTo(x+w, y+h*.61);
+  ctx.lineTo(x+w, y+h);
+  ctx.lineTo(x, y+h);
+  ctx.fill();
+  for (let i = 0; i < 38; i++) {
+    ctx.fillStyle = i % 3 ? fleck : water;
+    ctx.fillRect(x + 3 + (i*43+seed*13)%(w-8), y+3+(i*31+seed*7)%(h-7), i%3 ? 3 : 6, i%2+1);
+  }
+  const sx = Math.floor(x+w/2), sy = y+h-16;
+  ctx.fillStyle = "#263b34";
+  ctx.fillRect(sx-shadow, sy, shadow*2, 3);
+  ctx.fillRect(sx-shadow+5, sy-2, shadow*2-10, 7);
+}
+
+function sprite(ctx: CanvasRenderingContext2D, draw: (painter: Art) => void, x: number, y: number, scale: number,
+  frame = 0, options?: ArtOptions) {
+  stamp(ctx, shadeSprite(paintSprite((r, p) => draw(artFor(r, p, frame, false, options)), 2)), x, y, scale);
+}
+
+function towerSheet() {
+  const ctx = surface("towers", 884);
+  heading(ctx, "瘴雾毒沼 · 炮塔与水獭设计", "瘦高水乡塔楼 · 水獭待机/攻击动作与升级形象");
+  const options = [
+    { name: "苇篷哨舍", note: "拦截塔 · 高脚水乡哨楼，派出水獭筏卫抵抗位移",
+      tiers: ["1 级 苇篷", "2 级 加桩", "3 级 固堤班", "4 级 系缆阵", "3 级 探滩队", "4 级 双桨巡卫"],
+      draw: reedPost },
+    { name: "盐釉投罐塔", note: "攻击塔 · 高架投罐塔楼，陶罐落地溅开白盐削弱重甲",
+      tiers: ["1 级 单罐", "2 级 加篮", "3 级 双簧", "4 级 厚釉破甲", "4 级 分罐盐雨", "抬臂发射"],
+      draw: (a: Art, index: number) => saltCaster(a, index === 5 ? 1 : index, index === 5) },
+  ];
+  options.forEach((tower, i) => {
+    const y = 104 + i * 194;
+    label(ctx, tower.name, 27, y + 19, 22, accent, 670);
+    label(ctx, tower.note, 192, y + 17, 14, secondary);
+    tower.tiers.forEach((tier, j) => {
+      const x = 27 + j * 156;
+      tile(ctx, x, y + 30, 146, 114, i, j === 5 ? 27 : 29, j);
+      sprite(ctx, a => tower.draw(a, j), x + 73, y + 128, 3.05);
+      label(ctx, tier, x + 8, y + 165, 14);
+    });
+  });
+
+  // Row 3: Enlarged Paddle Otter — Idle (with tail-slap!), Attack & Brace poses
+  const yPose = 496;
+  label(ctx, "水獭筏卫 · 动作姿态", 27, yPose + 17, 22, accent, 670);
+  label(ctx, "6 帧待机（抬尾眨眼 → 甩尾拍地溅水） · 蓄力挥桨攻击与横桨立撑", 242, yPose + 16, 14, secondary);
+  const poses: readonly [string, View, OtterPose, number][] = [
+    ["正面待机", "front", "idle", 0],
+    ["待机拍尾", "front", "idle", 3],
+    ["侧面步行", "side", "walk", 1],
+    ["攻击蓄力", "side", "windup", 0],
+    ["挥桨重劈", "side", "strike", 0],
+    ["横桨接敌", "side", "brace", 0],
+  ];
+  poses.forEach(([name, view, pose, frame], i) => {
+    const x = 27 + i * 156;
+    tile(ctx, x, yPose + 28, 146, 116, 2, 27, i);
+    sprite(ctx, a => paddleOtter(a, view, pose === "brace"), x + 73, yPose + 128, 3.35, frame, {
+      otter: { tier: 1, pose },
+    });
+    label(ctx, name, x + 8, yPose + 166, 14);
+  });
+
+  // Row 4: Paddle Otter — Upgrade progression preview
+  const yTier = 692;
+  label(ctx, "水獭筏卫 · 升级形象", 27, yTier + 17, 22, accent, 670);
+  label(ctx, "按哨舍等级与分支演进披肩、护肩、头带与船桨细节", 242, yTier + 16, 14, secondary);
+  const ranks: readonly [string, number, string | undefined, View][] = [
+    ["1 级 苇篷水獭", 1, undefined, "front"],
+    ["2 级 加桩水獭", 2, undefined, "front"],
+    ["4 级 固堤系缆（重甲水标桨）", 4, "fixed-bank", "front"],
+    ["4 级 双桨巡卫（红巾背双桨）", 4, "mud-patrol", "side"],
+  ];
+  ranks.forEach(([name, tier, branch, view], i) => {
+    const x = 27 + i * 235;
+    tile(ctx, x, yTier + 28, 224, 118, 2, 32, i + 10);
+    sprite(ctx, a => paddleOtter(a, view, false), x + 112, yTier + 130, 3.55, 0, {
+      otter: { tier, branch, pose: "idle" },
+    });
+    label(ctx, name, x + 9, yTier + 168, 14);
+  });
+}
+
+const enemies: readonly { name: string; role: string; copy: readonly string[]; painter: Painter; skill: string; scale: number }[] = [
+  { name: "藻褶弹涂鱼", role: "普通 · 浅泥快怪", copy: ["胸鳍张开、压腹蓄势", "在浅泥路段短跳"], painter: mudskipper, skill: "展鳍跃泥", scale: 3.25 },
+  { name: "泥盾蝲蛄", role: "普通 · 朝向护甲", copy: ["单侧泥钳抬到头前", "侧翼与溅射绕过护盾"], painter: shieldCrayfish, skill: "单钳举盾", scale: 3.3 },
+  { name: "灯囊沼蛾", role: "普通 · 空中投渡", copy: ["灯腹下沉并放下吊钩", "携带一只轻型同伴"], painter: lanternMoth, skill: "吊渡负重", scale: 3.2 },
+  { name: "鞭须泥鲶", role: "小领主 · 拖拽", copy: ["铜须绷直后扫过泥面", "拖近范围内的拦截单位"], painter: whiskerCatfish, skill: "卷须拖拽", scale: 3.45 },
+  { name: "瓮背石蚌", role: "小领主 · 壳体开合", copy: ["闭壳蓄压，开壳露珠", "露珠时集中火力"], painter: stoneClam, skill: "开壳露珠", scale: 3.5 },
+  { name: "芦影织蛛", role: "小领主 · 可打断增援", copy: ["枯枝足撑地，落下卵囊", "先打卵囊可阻止增援"], painter: reedSpider, skill: "织丝落囊", scale: 3.45 },
+  { name: "芦影蛛幼体", role: "衍生 · 卵囊孵化", copy: ["乳白卵囊 4 秒未毁孵出 2 只", "低血快跑，无击杀金币"], painter: reedSpiderling, skill: "破囊而出", scale: 3.15 },
+  { name: "沉堤泽蛟", role: "最终 Boss · 两路泥潮", copy: ["覆泥鳞甲托着旧闸", "放潮后闸背敞开"], painter: sluiceDragon, skill: "抬闸放潮", scale: 4.1 },
+];
+
+function enemySheet() {
+  const rowHeight = 136;
+  const ctx = surface("enemies", 119 + enemies.length * rowHeight + 18);
+  heading(ctx, "瘴雾毒沼 · 怪物与首领", "8 帧行走动作 · 专属近战攻击姿态 · 技能姿态");
+  const views: readonly [string, View, boolean, boolean][] = [
+    ["正面", "front", false, false],
+    ["侧面", "side", false, false],
+    ["背面", "back", false, false],
+    ["攻击姿态", "side", false, true],
+    ["技能姿态", "side", true, false],
+  ];
+  views.forEach(([title], i) => label(ctx, title, 250 + i * 142, 104, 14, secondary, 600));
+  enemies.forEach((enemy, i) => {
+    const isBoss = enemy.name === "沉堤泽蛟";
+    const isMinion = enemy.name === "芦影蛛幼体";
+    const y = 117 + i * rowHeight, color = isBoss ? 2 : i >= 3 ? 1 : 0;
+    ctx.fillStyle = isBoss ? "#293c39" : "#233633";
+    ctx.fillRect(26, y, 932, rowHeight - 7);
+    label(ctx, enemy.name, 42, y + 29, 22, isBoss ? "#f0d59b" : accent, 680);
+    label(ctx, enemy.role, 42, y + 54, 14, text);
+    enemy.copy.forEach((line, j) => label(ctx, line, 42, y + 81 + j * 20, 13, secondary));
+    views.forEach(([, view, skill, attacking], j) => {
+      const x = 244 + j * 142;
+      const shadow = isBoss ? 44 : isMinion ? (skill ? 30 : 19) : i >= 3 ? 34 : 27;
+      tile(ctx, x, y + 6, 134, 115, color, shadow, i * 5 + j);
+      sprite(
+        ctx,
+        a => enemy.painter(a, view, skill),
+        x + 67,
+        y + 101,
+        enemy.scale * 0.92,
+        0,
+        attacking ? { attack: "strike" } : undefined,
+      );
+      if (attacking) label(ctx, "近战出手", x + 6, y + 117, 12, "#ffd9a0", 650);
+      if (skill) label(ctx, enemy.skill, x + 6, y + 117, 12, "#fff3cc", 650);
+    });
+  });
+}
+
+towerSheet();
+enemySheet();
+(document.getElementById("save-towers") as HTMLAnchorElement).href =
+  (document.getElementById("towers") as HTMLCanvasElement).toDataURL("image/png");
+(document.getElementById("save-enemies") as HTMLAnchorElement).href =
+  (document.getElementById("enemies") as HTMLCanvasElement).toDataURL("image/png");
+document.title += " · ready";

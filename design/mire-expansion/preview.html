@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>瘴雾毒沼 · 美术设计</title>
+  <style>
+    body { margin: 0; padding: 24px; background: #111e21; color: #ebead7; font-family: system-ui, sans-serif; }
+    main { max-width: 984px; margin: auto; }
+    .bar { display: flex; gap: 10px; margin-bottom: 12px; }
+    .bar a { padding: 6px 12px; border-radius: 6px; background: #23393a; color: #eeecda; text-decoration: none; font-size: 13px; border: 1px solid #496660; }
+    canvas { display: block; width: 100%; height: auto; margin-block: 0 18px; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="bar">
+      <a id="save-towers" download="mire-expansion-towers.png" href="#">导出炮塔与水獭 PNG</a>
+      <a id="save-enemies" download="mire-expansion-enemies.png" href="#">导出怪物与首领 PNG</a>
+    </div>
+    <canvas id="towers" role="img" aria-label="苇篷哨舍、盐釉投罐塔与筏卫关键姿态"></canvas>
+    <canvas id="enemies" role="img" aria-label="三种怪物、三个小领主、沉堤泽蛟的三视图与技能姿态"></canvas>
+  </main>
+  <script type="module" src="./preview.ts"></script>
+</body>
+</html>

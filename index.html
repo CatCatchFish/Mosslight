@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#1b211a" />
+    <meta
+      name="description"
+      content="从林场小径穿过河湾与雪岭，守住微光防线。离线像素塔防。"
+    />
+    <title>微光防线 · 像素塔防</title>
+  </head>
+  <body>
+    <audio id="soundtrack" loop preload="none" hidden></audio>
+    <div id="storage-status" class="storage-status" role="status" hidden></div>
+    <main id="campaign-view" class="campaign" hidden>
+      <section class="map-frame" aria-label="主线路线">
+        <div class="board-space map-space">
+          <canvas id="map-surround" class="scene-surround" aria-hidden="true"></canvas>
+          <div class="scene-corner">
+            <button
+              class="scene-button settings-button"
+              id="map-settings"
+              type="button"
+              aria-label="系统设置"
+              aria-haspopup="dialog"
+              title="系统设置"
+              data-icon="gear"
+            ></button>
+          </div>
+          <div class="map-brand">
+            <span data-icon="lantern"></span>
+            <h1>微光防线</h1>
+          </div>
+          <button id="map-viewport" class="scene-button board-expand" type="button" data-icon="expand" aria-pressed="false" aria-label="放大地图"></button>
+          <div class="map-world">
+            <img id="campaign-map" width="460" height="256" alt="" />
+            <div id="region-signs" class="region-signs" aria-hidden="true"></div>
+            <div id="map-ambience" class="map-ambience" aria-hidden="true"></div>
+            <div
+              id="map-wildlife"
+              class="map-wildlife"
+              role="group"
+              aria-label="地图动物"
+            ></div>
+            <div
+              id="map-nodes"
+              class="map-nodes"
+              role="group"
+              aria-label="18 个关卡站点"
+            ></div>
+            <div
+              id="landmark-pins"
+              class="landmark-pins"
+              role="group"
+              aria-label="沿途路标"
+            ></div>
+            <div id="trail-scout" class="trail-scout" aria-hidden="true">
+              <img id="scout-art" alt="" />
+            </div>
+            <p id="wildlife-note" class="wildlife-note" role="status" hidden></p>
+          </div>
+        </div>
+        <aside class="map-info" aria-label="出发准备">
+          <div class="selected-route">
+            <p
+              id="travel-note"
+              class="feedback-travel"
+              role="status"
+              hidden
+            ></p>
+            <div class="stage-cover">
+              <canvas id="stage-art" width="240" height="108" aria-hidden="true"></canvas>
+              <div class="cover-caption">
+            <div class="map-meta">
+              <span id="map-chapter"></span>
+              <span id="map-mission-status"></span>
+            </div>
+            <h2>
+              <span id="stage-number" aria-hidden="true"></span
+              ><span id="map-mission"></span>
+            </h2>
+              </div>
+            </div>
+            <div class="stage-desc" id="stage-desc">
+              <p id="map-description"></p>
+              <button
+                type="button"
+                id="toggle-description"
+                class="desc-toggle"
+                aria-expanded="false"
+                aria-controls="map-description"
+                hidden
+              >展开</button>
+            </div>
+            <div id="stage-facts" class="stage-facts">
+              <span
+                ><i data-icon="flag"></i><span id="stage-waves"></span
+              ></span>
+              <span
+                ><i data-icon="trail"></i><span id="stage-entries"></span
+              ></span>
+              <span id="best-rating" class="best-rating"></span>
+            </div>
+          </div>
+          <nav class="campaign-nav" aria-label="地区与关卡">
+            <div id="region-tabs" class="region-tabs" role="group" aria-label="选择地区"></div>
+            <div id="region-stops" class="region-stops" role="group" aria-label="地区关卡"></div>
+          </nav>
+          <div class="map-actions">
+            <button class="action start-level" type="button" id="start-level">
+              <span data-icon="play"></span><span id="start-label"></span>
+            </button>
+            <button
+              class="loadout-trigger"
+              id="open-loadout"
+              type="button"
+              aria-haspopup="dialog"
+            >
+              <span data-icon="hammer"></span><span>炮塔编队</span>
+              <span id="loadout-total" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div aria-label="旅途进度" class="map-progress">
+            <span><i data-icon="flag"></i><span id="clear-total"></span></span>
+            <span
+              ><i data-icon="lantern"></i><span id="discovery-count"></span
+            ></span>
+          </div>
+        </aside>
+      </section>
+    </main>
+    <main class="game" id="game-view" hidden>
+      <section class="frame" aria-label="战场">
+        <div class="board-space battle-space" id="battle-space">
+          <div class="scene-corner">
+            <button
+              class="scene-button settings-button"
+              id="battle-settings"
+              type="button"
+              aria-label="系统设置"
+              aria-haspopup="dialog"
+              title="系统设置"
+              data-icon="gear"
+            ></button>
+          </div>
+          <button id="battle-viewport" class="scene-button battle-zoom" type="button" aria-controls="battle-world" aria-pressed="false" aria-label="放大战场"></button>
+          <canvas id="battlefield" aria-label="像素战场地图"></canvas>
+          <div id="battle-world">
+            <div class="field" id="field">
+              <div
+                id="battle-scenery"
+                class="battle-scenery"
+                role="group"
+                aria-label="战场见闻"
+              ></div>
+              <div
+                id="plots"
+                class="plots"
+                role="group"
+                aria-label="防御建筑地块"
+              ></div>
+              <div id="gate-markers" class="gate-markers" aria-hidden="true"></div>
+              <div id="battle-devices" role="group" aria-label="战场机关"></div>
+              <div id="guard-rally" class="guard-rally" role="group" aria-label="岗哨防守点" hidden></div>
+            </div>
+          </div>
+          <span id="battle-pan-hint" class="battle-pan-hint" hidden>拖动查看战场</span>
+          <span id="battle-rally-hint" class="guard-rally-hint" hidden></span>
+          <div id="device-dock" class="device-dock" role="group" aria-label="快捷机关栏" hidden></div>
+          <div
+            id="boss-bar"
+            class="boss-bar"
+            role="progressbar"
+            aria-labelledby="boss-name"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            hidden
+          >
+            <div class="boss-head">
+              <b id="boss-name"></b><span id="boss-state">突围即败</span><output id="boss-percent"></output>
+            </div>
+            <div class="boss-track"><span id="boss-fill"></span></div>
+          </div>
+          <div id="notice" class="notice" role="status" hidden></div>
+        </div>
+        <aside class="battle-status" aria-label="战况与指挥">
+          <div class="battle-brief">
+            <canvas id="battle-art" width="240" height="108" aria-hidden="true"></canvas>
+            <div class="battle-location">
+              <span id="level-caption"></span>
+            </div>
+            <div class="wave-line">
+              <b id="battle-title"></b>
+              <span id="wave" aria-label="波次"></span>
+            </div>
+            <div class="battle-conditions">
+              <div class="wave-pips" id="wave-pips" aria-hidden="true"></div>
+              <span id="battle-weather" role="status" aria-label="战场天气"></span>
+            </div>
+          </div>
+          <dl class="hud" aria-label="战况">
+            <div class="score gold"><dt><i data-icon="coin"></i>金币</dt><dd id="gold"></dd><dd id="gold-rewards" aria-hidden="true"></dd></div>
+            <div class="score health"><dt><i data-icon="heart"></i>核心</dt><dd id="health"></dd></div>
+            <div class="score kill-score"><dt><i data-icon="skull"></i>击败</dt><dd id="kills"></dd></div>
+          </dl>
+          <section id="menu" class="menu" aria-labelledby="menu-title" hidden>
+            <div class="menu-head">
+              <h2 id="menu-title"></h2>
+              <button type="button" id="close-menu" class="close-menu" aria-label="关闭建造或升级菜单"></button>
+            </div>
+            <div id="menu-content"></div>
+          </section>
+          <div class="command-controls" id="command-controls">
+            <p id="battle-tip"></p>
+            <div class="battle-entries">
+              <button class="action start-first-wave" type="button" id="start-first-wave" hidden>
+                <span id="first-action-icon"></span><span id="first-action-label"></span>
+              </button>
+              <div class="gates" id="gate-controls" role="group" aria-label="出怪入口"></div>
+            </div>
+          </div>
+          <div class="battle-actions" role="group" aria-label="战斗控制">
+            <button class="scene-button" type="button" id="pause" aria-label="暂停" title="暂停（P）"></button>
+            <button class="scene-button speed" type="button" id="speed" aria-label="切换游戏速度" title="切换游戏速度">
+              <span id="speed-value">1×</span>
+            </button>
+            <button class="scene-button" type="button" id="range-scout" aria-pressed="false"
+              aria-label="显示射程与布防范围" title="射程与布防范围（R）" data-icon="range"></button>
+            <button class="scene-button" type="button" id="journal" aria-label="怪物图鉴" title="怪物图鉴">
+              <span id="journal-cover" data-icon="book"></span><span id="wave-roster" class="discovery-dot" aria-hidden="true" hidden></span>
+            </button>
+          </div>
+        </aside>
+      </section>
+    </main>
+    <main id="exit-view" class="exit-view" hidden>
+      <div class="exit-home">
+        <img src="/icon.svg" width="72" height="72" alt="" />
+        <h1>微光防线</h1>
+        <button class="action" type="button" id="resume-game"><span data-icon="play"></span>重新进入</button>
+      </div>
+    </main>
+    <dialog
+      id="settings-dialog"
+      class="settings-dialog"
+      aria-labelledby="settings-title"
+    >
+      <div class="menu-head">
+        <h2 id="settings-title">系统设置</h2>
+        <form method="dialog">
+          <button
+            class="close-menu"
+            type="submit"
+            aria-label="关闭设置"
+            data-icon="close"
+          ></button>
+        </form>
+      </div>
+      <div class="settings-toggles">
+        <div class="setting-audio-group">
+          <button class="setting" type="button" id="music" aria-pressed="true">
+            <span data-icon="music"></span><span>背景音乐</span
+            ><span class="setting-state"></span>
+          </button>
+          <label class="volume-setting" for="music-volume">
+            <span>音乐音量</span><output id="music-volume-value" for="music-volume">40%</output>
+            <input id="music-volume" type="range" min="0" max="100" value="40" />
+          </label>
+        </div>
+        <div class="setting-audio-group">
+          <button class="setting" type="button" id="audio" aria-pressed="false">
+            <span data-icon="sound"></span><span>游戏音效</span
+            ><span class="setting-state"></span>
+          </button>
+          <label class="volume-setting" for="sound-volume">
+            <span>音效音量</span><output id="sound-volume-value" for="sound-volume">100%</output>
+            <input id="sound-volume" type="range" min="0" max="100" value="100" />
+          </label>
+        </div>
+        <div class="setting-audio-group">
+          <button class="setting" type="button" id="ambience" aria-pressed="true">
+            <span data-icon="trail"></span><span>环境音</span
+            ><span class="setting-state"></span>
+          </button>
+        </div>
+        <button class="setting setting-wide" type="button" id="art-quality" aria-pressed="true">
+          <span data-icon="sparkle"></span><span>画面细节</span><span class="setting-state">高</span>
+        </button>
+      </div>
+      <div class="settings-actions" id="battle-settings-actions" hidden>
+        <button class="dialog-secondary" type="button" id="route-home">
+          <span data-icon="compass"></span>返回地图
+        </button>
+        <button class="dialog-secondary" type="button" id="restart">
+          <span data-icon="reset"></span>重开关卡
+        </button>
+      </div>
+      <button class="dialog-secondary settings-exit" type="button" id="exit-game">
+        <span data-icon="exit"></span>退出游戏
+      </button>
+    </dialog>
+    <dialog id="exit-dialog" aria-labelledby="exit-title">
+      <h2 id="exit-title">退出游戏？</h2>
+      <p id="exit-description">已获得的关卡评级和设置会保留。</p>
+      <div class="dialog-actions">
+        <form method="dialog"><button class="dialog-secondary" autofocus>取消</button></form>
+        <button class="action" type="button" id="confirm-exit">退出游戏</button>
+      </div>
+    </dialog>
+    <dialog
+      id="loadout-dialog"
+      class="loadout-dialog"
+      aria-labelledby="loadout-title"
+    >
+      <div class="menu-head">
+        <div class="loadout-heading">
+          <h2 id="loadout-title">炮塔编队</h2>
+          <p id="loadout-stage" class="loadout-stage"></p>
+        </div>
+        <form method="dialog">
+          <button
+            id="close-loadout"
+            class="close-menu"
+            aria-label="关闭炮塔编队"
+          ></button>
+        </form>
+      </div>
+      <div class="loadout-deck-bar">
+        <div id="loadout-deck" class="loadout-deck" role="group" aria-label="当前出战编队"></div>
+        <div class="loadout-quick-actions">
+          <button type="button" id="loadout-preset" class="dialog-secondary loadout-mini">推荐</button>
+          <button type="button" id="loadout-clear" class="dialog-secondary loadout-mini">清空</button>
+        </div>
+      </div>
+      <div class="loadout-toolbar">
+        <div id="loadout-tabs" class="loadout-tabs" role="tablist" aria-label="炮塔分类"></div>
+        <p id="loadout-help" class="loadout-help" role="status"></p>
+      </div>
+      <div
+        class="loadout-grid"
+        id="loadout-grid"
+        role="group"
+        aria-label="可选炮塔列表"
+      ></div>
+      <div class="loadout-bottom">
+        <div id="loadout-detail" class="loadout-detail" aria-live="polite"></div>
+        <div class="loadout-footer">
+          <strong id="loadout-count"></strong>
+          <button type="button" id="save-loadout" class="action">保存编队</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog
+      id="landmark-dialog"
+      class="landmark-dialog"
+      aria-labelledby="landmark-title"
+    >
+      <div class="landmark-art">
+        <img id="landmark-art" width="480" height="218" alt="" />
+        <form method="dialog">
+          <button
+            id="close-landmark"
+            class="close-menu"
+            aria-label="关闭沿途手记"
+          ></button>
+        </form>
+      </div>
+      <div class="landmark-caption">
+        <p id="landmark-count" class="landmark-count"></p>
+        <h2 id="landmark-title"></h2>
+        <p id="landmark-note"></p>
+      </div>
+    </dialog>
+    <dialog id="route-dialog" aria-labelledby="route-title">
+      <h2 id="route-title">返回主线地图？</h2>
+      <p>当前这场战斗的进度将结束。已获得的关卡评级会保留。</p>
+      <div class="dialog-actions">
+        <form method="dialog">
+          <button class="dialog-secondary">继续战斗</button>
+        </form>
+        <button class="action" type="button" id="confirm-route">
+          返回地图
+        </button>
+      </div>
+    </dialog>
+    <dialog id="restart-dialog" aria-labelledby="restart-title">
+      <h2 id="restart-title">重开关卡？</h2>
+      <p>本局的金币、防御塔和战斗进度将重置。</p>
+      <div class="dialog-actions">
+        <form method="dialog">
+          <button class="dialog-secondary">继续本局</button>
+        </form>
+        <button class="action" type="button" id="confirm-restart">
+          重开关卡
+        </button>
+      </div>
+    </dialog>
+    <dialog id="journal-dialog" class="journal" aria-labelledby="journal-title">
+      <div class="menu-head">
+        <h2 id="journal-title">哨兵手记</h2>
+        <form method="dialog">
+          <button
+            id="close-journal"
+            class="close-menu"
+            aria-label="关闭怪物图鉴"
+          ></button>
+        </form>
+      </div>
+      <p id="journal-empty" class="journal-empty">
+        本关的新怪物出场后，哨兵会把它们记在这里。
+      </p>
+      <p id="journal-count" class="journal-count"></p>
+      <div id="journal-list" class="journal-list"></div>
+    </dialog>
+    <dialog
+      id="result-dialog"
+      class="route-result"
+      aria-labelledby="result-title"
+    >
+      <div class="result-cover">
+        <img id="result-art" width="240" height="108" alt="" />
+        <div class="result-caption">
+          <div id="result-stars" class="result-stars" hidden></div>
+          <h2 id="result-title"></h2>
+        </div>
+      </div>
+      <p id="result-summary"></p>
+      <div class="dialog-actions">
+        <button class="dialog-secondary" type="button" id="result-route">
+          主线地图</button
+        ><button class="dialog-secondary" type="button" id="replay">
+          重试关卡</button
+        ><button class="action" type="button" id="result-next" hidden>
+          前往翡翠林地
+        </button>
+      </div>
+    </dialog>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+.DS_Store
+node_modules/
+dist/
+work/
+*.log
+__pycache__/
+*.py[cod]
+
+# Local credentials and Android signing material
+local.properties
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p12
+*.pfx
+
+# Android distribution builds
+*.apk
+*.aab

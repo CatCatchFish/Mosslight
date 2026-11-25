@@ -1,0 +1,8 @@
+{
+  "name": "mosslight",
+  "installCommand": "",
+  "buildCommand": "",
+  "assets": {
+    "directory": "./"
+  }
+}

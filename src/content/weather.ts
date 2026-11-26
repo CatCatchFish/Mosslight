@@ -38,10 +38,14 @@ export interface WeatherVignette {
 export interface WeatherPreset {
   readonly label: string;
   readonly desc: string;
+  readonly effectSummary?: string;
   readonly severity: WeatherSeverity;
   readonly accent: string;
   readonly cue?: WeatherCueKind;
   readonly towerRate?: number;
+  readonly towerRange?: number;
+  readonly enemySpeed?: number;
+  readonly enemyArmor?: number;
   readonly tint?: string;
   readonly vignette?: WeatherVignette;
   readonly mist?: { readonly color: string; readonly opacity: number; readonly drift: number };
@@ -68,10 +72,13 @@ export const WEATHER = {
   },
   gale: {
     label: "林涛疾风",
-    desc: "狂风卷动密林，落叶横飞",
+    desc: "狂风卷动密林，炮塔射速略降，怪物借风提速",
+    effectSummary: "射速 -8% · 怪速 +7%",
     severity: "severe",
     accent: "#b5d976",
     cue: "gust",
+    towerRate: 0.92,
+    enemySpeed: 1.07,
     tint: "#192d221c",
     vignette: { color: "#0f2018", opacity: 0.34 },
     mist: { color: "#b7cca1", opacity: 0.2, drift: 26 },
@@ -102,10 +109,13 @@ export const WEATHER = {
   },
   downpour: {
     label: "大雨",
-    desc: "骤雨倾泻，水面涟漪四起",
+    desc: "骤雨倾泻，炮塔射速略降，怪物顺水加快",
+    effectSummary: "射速 -7% · 怪速 +6%",
     severity: "severe",
     accent: "#72bdf2",
     cue: "thunder",
+    towerRate: 0.93,
+    enemySpeed: 1.06,
     tint: "#1630482e",
     vignette: { color: "#091724", opacity: 0.34 },
     mist: { color: "#89aebd", opacity: 0.32, drift: 16 },
@@ -118,10 +128,13 @@ export const WEATHER = {
   },
   thunderstorm: {
     label: "雷暴倾盆",
-    desc: "电闪雷鸣，狂风暴雨席卷渡口",
+    desc: "狂风暴雨席卷渡口，炮塔射速下降，怪物移速提升",
+    effectSummary: "射速 -11% · 怪速 +8%",
     severity: "severe",
     accent: "#8bd0ff",
     cue: "thunder",
+    towerRate: 0.89,
+    enemySpeed: 1.08,
     tint: "#0f233b3b",
     vignette: { color: "#07111e", opacity: 0.46 },
     mist: { color: "#7598ad", opacity: 0.36, drift: 24 },
@@ -146,10 +159,13 @@ export const WEATHER = {
   },
   sandstorm: {
     label: "风沙蔽日",
-    desc: "黄沙呼啸掠过赤岩采区",
+    desc: "黄沙遮蔽视野，炮塔射程缩短，怪物借尘减伤",
+    effectSummary: "射程 -9% · 怪减伤 7%",
     severity: "severe",
     accent: "#f3b469",
     cue: "gust",
+    towerRange: 0.91,
+    enemyArmor: 0.93,
     tint: "#b87a3d28",
     vignette: { color: "#341e0d", opacity: 0.42 },
     mist: { color: "#dfa96b", opacity: 0.42, drift: 34 },
@@ -158,10 +174,14 @@ export const WEATHER = {
   },
   emberStorm: {
     label: "熔烬风暴",
-    desc: "热浪夹杂火星与炉灰翻涌",
+    desc: "热浪夹杂炉灰翻涌，炮塔射速下降，怪物躁动提速并略微减伤",
+    effectSummary: "射速 -10% · 怪速 +8% · 怪减伤 4%",
     severity: "severe",
     accent: "#ff9b5e",
     cue: "gust",
+    towerRate: 0.9,
+    enemySpeed: 1.08,
+    enemyArmor: 0.96,
     tint: "#421c102e",
     vignette: { color: "#240d08", opacity: 0.48 },
     mist: { color: "#c97447", opacity: 0.32, drift: 26 },
@@ -189,11 +209,13 @@ export const WEATHER = {
   },
   blizzard: {
     label: "暴风雪",
-    desc: "暴雪封锁雪线，厚雪压住景物，炮塔射速明显下降",
+    desc: "暴雪封锁雪线，炮塔射速明显下降，怪物借风雪减伤",
+    effectSummary: "射速 -30% · 怪减伤 6%",
     severity: "severe",
     accent: "#8fd4ff",
     cue: "blizzard",
     towerRate: 0.7,
+    enemyArmor: 0.94,
     vignette: { color: "#0b1c2e", opacity: 0.1 },
     particles: { style: "snow", count: 92, wind: 46, fall: 48, color: "#f9feff", opacity: 0.92, scale: 1.42 },
     windStreaks: { count: 12, speed: 126, angle: 0.24, color: "#f0f9ff", opacity: 0.22, length: 42 },
@@ -219,10 +241,14 @@ export const WEATHER = {
   },
   toxicStorm: {
     label: "剧毒瘴暴",
-    desc: "毒孢随酸风席卷沼泽，水面翻泡",
+    desc: "酸风毒孢席卷沼泽，炮塔射速下降，怪物更耐打且加快",
+    effectSummary: "射速 -10% · 怪减伤 8% · 怪速 +6%",
     severity: "severe",
     accent: "#bef567",
     cue: "miasma",
+    towerRate: 0.9,
+    enemyArmor: 0.92,
+    enemySpeed: 1.06,
     vignette: { color: "#0d1f10", opacity: 0.22 },
     particles: { style: "spore", count: 88, wind: 34, fall: -10, color: "#d7ff78", opacity: 0.88 },
     windStreaks: { count: 14, speed: 108, angle: -0.06, color: "#c9f57a", opacity: 0.24, length: 42 },

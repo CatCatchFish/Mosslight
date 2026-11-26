@@ -3,7 +3,6 @@ import { SUNMIRROR_BRIDGES } from "./levels/sunmirror-bridges.ts";
 import { FROST_WATCH } from "./levels/frost-watch.ts";
 import { MIRE_BOARDWALK } from "./levels/mire-boardwalk.ts";
 import { MIRE_EXPANSION_LEVELS } from "./levels/mire-expansion.ts";
-import type { EnemyId } from "../engine/types.ts";
 import { TUTORIAL_LEVEL } from "./levels/forest-outpost.ts";
 import { PINE_CREEK } from "./levels/pine-creek.ts";
 import { REED_BRIDGE } from "./levels/reed-bridge.ts";
@@ -13,8 +12,9 @@ import { FIELD_LEVEL } from "./levels/emerald-woods.ts";
 import { OCHRE_MINE } from "./levels/ochre-mine.ts";
 import { WINCH_GALLERY } from "./levels/winch-gallery.ts";
 import { FORK_STATION } from "./levels/fork-station.ts";
-import type { Level } from "../engine/types.ts";
+import type { BuildingId, EnemyId, Level } from "../engine/types.ts";
 import { planFormation } from "../engine/formation.ts";
+import { levelTowerOptions } from "./towers.ts";
 import type { WeatherPlan } from "./weather.ts";
 
 export interface Stage {
@@ -65,6 +65,25 @@ export const STAGES: readonly Stage[] = Array.from(
   },
 );
 
+export function unlockedThroughIndex(ratings: Readonly<Record<string, number | undefined>>) {
+  let highestCleared = -1;
+  for (const stage of STAGES)
+    if (stage.level && ratings[stage.id]) highestCleared = Math.max(highestCleared, stage.index);
+  return Math.min(STAGES.length - 1, highestCleared + 1);
+}
+
+export const STARTER_TOWERS: readonly BuildingId[] = ["arrow", "cannon", "frost"];
+
+export function unlockedTowers(ratings: Readonly<Record<string, number | undefined>>): BuildingId[] {
+  const maxIndex = unlockedThroughIndex(ratings);
+  const pool = new Set<BuildingId>();
+  for (const stage of STAGES) {
+    if (stage.index > maxIndex || !stage.level) continue;
+    for (const id of levelTowerOptions(stage.level)) pool.add(id);
+  }
+  return [...pool];
+}
+
 // The almanac uses the first playable stage containing each enemy.
 const introductions = new Map<string, ReadonlySet<EnemyId>>();
 const known = new Set<EnemyId>();
@@ -83,6 +102,10 @@ for (const { id, level } of STAGES) {
       known.add(spawn);
       introduced.add(spawn);
     }
+  }
+  if (introduced.has("mire-matriarch")) {
+    known.add("spore-pod");
+    introduced.add("spore-pod");
   }
   introductions.set(id, introduced);
 }

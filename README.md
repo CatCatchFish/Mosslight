@@ -2,17 +2,18 @@
 
 离线单机像素塔防。原生 HTML、CSS、TypeScript 与 Canvas 渲染，Vite 构建，Capacitor 封装 Android。主地图共 18 个站点，覆盖林缘、苔岸、矿道、霜脊与毒沼五大区域。
 
-- 当前版本：**v1.0.0**（`versionCode=25`）
-- 自动测试：**123 项通过**
+- 当前版本：**v1.1.3**（`versionCode=34`）
+- 自动测试：**153 项通过**
 - 深度接手文档：[HANDOFF.md](HANDOFF.md)
 
 ## 游戏内容
 
-- **18 关完整战役**，第 18 关终波为沉堤泽蛟。
+- **18 关完整战役**，按顺序逐步解锁；未解锁站点不显示，清关后探路者沿小径走到下一站并播放解锁动画。第 18 关终波为沉堤泽蛟。
 - **11 种射击塔 + 4 种拦截建筑**；每种射击塔有三级基础档与两条四级专精路线。
 - **5 槽编队限制**，不同关卡按自身解锁范围筛选。
+- **星辉天赋**：用通关星级点亮 6 条成长路线，可自由重置。
 - **19 种可点击景物**与 19 类专属交互音，包含木屋、鸟屋、火堆、矿车、冰铃、苔沼石偶等。
-- **16 种天气预设**；雪天具有清晰雪片、景物积雪与纯射速减益，不改变单发伤害。
+- **16 种天气预设**：恶劣天气会实际影响炮塔射速/射程与怪物速度/减伤，可由避风灯罩天赋减免。
 - **区域环境音**：每区 24 秒稀疏事件循环，独立“环境音”开关；战斗、命中、状态、Boss、景物均有独立音色。
 - **存档兼容**：Web 使用 `localStorage`，Android 使用 Capacitor Preferences，包名固定为 `com.mosslight.expedition`。
 
@@ -22,8 +23,9 @@
 
 ```sh
 npm ci
-npm run dev         # 本地开发服务器
-npm test            # 123 项战斗、关卡、区域纯度、存档、防沉迷门禁与新塔回归测试
+npm run dev         # 普通本地开发服务器
+npm run dev:unlocked # 全关卡三星调试模式（独立调试存档）
+npm test            # 153 项战斗、关卡、闯关解锁、天赋、天气、存档与新塔回归测试
 npm run build       # TypeScript 类型检查 + Vite 生产构建
 npm run mobile:sync # 构建并同步 Web 资源至 Android 工程
 ```
@@ -33,38 +35,18 @@ npm run mobile:sync # 构建并同步 Web 资源至 Android 工程
 安装 JDK 21 和 Android SDK（Platform 36 + Build-Tools 35），并配置 `JAVA_HOME` 与 `ANDROID_HOME`。
 
 ```sh
-npm run apk:debug
+npm run apk:debug          # 正常逐关解锁包
+npm run apk:debug-unlocked # 开发者全解锁包，禁止发布
 ```
 
-产物位于 `android/app/build/outputs/apk/debug/app-debug.apk`。安装包和签名文件保存在构建机本地。
+普通产物位于 `android/app/build/outputs/apk/debug/app-debug.apk`，本地归档为 [glimmer-defense-1.1.3-debug.apk](outputs/glimmer-defense-1.1.3-debug.apk)；开发者全解锁包归档为 [glimmer-defense-1.1.3-debug-unlocked.apk](outputs/glimmer-defense-1.1.3-debug-unlocked.apk)。两者均为 Debug 签名，不是商店发布签名包。构建全解锁包后必须再执行一次 `npm run apk:debug`，恢复普通闯关逻辑。
 
-## TapTap 防沉迷适配层
+## 隐私政策
 
-Android 端已加入统一的防沉迷适配层，Web 端不启用：
-
-- TS 桥接：[`src/platform/anti-addiction.ts`](src/platform/anti-addiction.ts)
-- 启动门禁与登录/限制提示：[`src/ui/anti-addiction.ts`](src/ui/anti-addiction.ts)
-- 原生 TapSDK 适配器：[`TapAntiAddictionPlugin.java`](android/app/src/main/java/com/mosslight/expedition/TapAntiAddictionPlugin.java)
-
-配置方式（二选一）：
-
-```properties
-# android/local.properties
-taptap.clientId=你的 Client ID
-taptap.clientToken=你的 Client Token
-```
-
-或构建时传入 `-PTAPTAP_CLIENT_ID=... -PTAPTAP_CLIENT_TOKEN=...`。本机配置文件由 Git 忽略。
-
-TapSDK 依赖已在 `android/app/build.gradle` 中启用，首次构建需联网从 Maven Central 解析 `tap-core`、`tap-login`、`tap-compliance:4.11.1` 及其传递依赖。Gradle 会缓存下载的依赖：
-
-```gradle
-implementation 'com.taptap.sdk:tap-core:4.11.1'
-implementation 'com.taptap.sdk:tap-login:4.11.1'
-implementation 'com.taptap.sdk:tap-compliance:4.11.1'
-```
-
-行为约定：未配置 Client ID/Token 时跳过门禁；SDK 异步初始化成功后才进入登录/合规流程；认证通过（`500`）后进入游戏；`1001` 走 TapTap 登录；`1030`、`1050`、`1100` 阻止进入；`9002` 与 `1200` 可重试。当前 `android/app/build/outputs/apk/debug/app-debug.apk` 已包含 TapSDK，但正式 `v1.0.0` 产物与商店素材尚未替换。上线前还需在 TapTap 开发者中心配置包名与签名 MD5、开通 TapTap 登录和合规认证，并补隐私政策/SDK 清单与真机回归。
+- 游戏内入口：首启同意页、系统设置 → 隐私政策；直接显示内置本地正文，不跳转浏览器
+- 本地正文：[docs/privacy-policy.html](docs/privacy-policy.html)
+- 线上商店/备案地址仍需另行同步：https://www.xieyimao.com/doc/detailzh/token/1795569792_5229
+- 游戏无需账号；经玩家单独同意后使用 TapDB 进行设备与游戏事件统计，可在隐私政策页底部撤回。TapTap 评价入口同样需要该授权；未授权前不会初始化统计或评价 SDK。无广告、无内购、无 TapTap 登录。
 
 ## 商店文案
 
@@ -74,7 +56,7 @@ implementation 'com.taptap.sdk:tap-compliance:4.11.1'
 - 18 关完整战役，林缘、苔岸、矿道、霜脊、毒沼五大区域
 - 11 种射击塔 + 4 种拦截建筑，三级基础档与双专精路线
 - 16 种天气、19 处可点击景物、完整战斗与环境音效
-- 离线单机，无内购；TapTap 渠道版按合规要求接入实名与防沉迷，首次认证需联网
+- 离线单机，无账号、无内购。
 
 ## 商店素材
 
@@ -89,6 +71,7 @@ implementation 'com.taptap.sdk:tap-compliance:4.11.1'
 | `trailer-v1.0.0.mp4` | 宣传片 |
 | `gameplay-v1.0.0.mp4` | 实机录屏 |
 | `taptap-copy.md` | 上架文案与完整素材清单 |
+| `update-notes-v1.1.0.md` | v1.1.0 更新说明（短版/长版） |
 
 ## 目录
 
@@ -100,13 +83,14 @@ implementation 'com.taptap.sdk:tap-compliance:4.11.1'
 | `src/ui/` | 主地图、战斗 HUD、编队、设置与景物交互 |
 | `src/platform/` | 音频、存档、生命周期 |
 | `public/sounds/` / `public/music/` | 战斗/环境音与区域音乐 |
-| `tests/` | 123 项自动回归测试 |
+| `tests/` | 153 项自动回归测试 |
 | `docs/previews/` | 关键版本美术与关卡预览 |
+| `docs/privacy-policy.html` | 隐私政策页面草稿 |
 | `outputs/store/` | 商店文案、图片、宣传片和实机录屏 |
 
 ## 已知限制
 
-- 第 15–18 关尚无脚本化三星通关计划；第 14 关已覆盖苇篷哨舍 + 冰雹迫击塔三星路线。
+- TapDB 真机初始化、匿名安装 ID、撤回/重新开启与冷启动复用已验证；TapTap 后台数据到达仍待确认。
 - 尚未进行 Android 真机全面回归。
 - 当前 APK 为 Debug 签名安装包，不是应用商店正式签名包。
 - Vite 仍提示主 JS 包超过 500 kB。

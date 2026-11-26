@@ -1,6 +1,10 @@
+import { sanitizeTalents, totalStarsEarned } from "../content/talents.ts";
+import type { TalentLevels } from "../content/talents.ts";
 import { LOADOUT_LIMIT, validTowerSelection } from "../content/towers.ts";
 import type { BuildingId } from "../engine/types.ts";
 import type { ArtQuality } from "../render/quality.ts";
+import { sanitizeReviewPrompts } from "./review.ts";
+import type { ReviewPromptStageId } from "./review.ts";
 
 export interface SaveBackend {
   read(key: string): Promise<string | null>;
@@ -19,6 +23,10 @@ export interface SaveData {
   readonly musicVolume: number;
   readonly artQuality: ArtQuality;
   readonly loadouts: Readonly<Record<string, readonly BuildingId[]>>;
+  readonly talents: TalentLevels;
+  readonly seenTowers: readonly BuildingId[];
+  readonly reviewPrompts: readonly ReviewPromptStageId[];
+  readonly reviewOpened: boolean;
 }
 
 export const GLOBAL_LOADOUT_KEY = "global";
@@ -93,6 +101,10 @@ const empty = (): SaveData => ({
   musicVolume: DEFAULT_MUSIC_VOLUME,
   artQuality: "high",
   loadouts: {},
+  talents: {},
+  seenTowers: [],
+  reviewPrompts: [],
+  reviewOpened: false,
 });
 
 export class SaveStore {
@@ -118,9 +130,10 @@ export class SaveStore {
     try {
       const current = parse(await this.backend.read(SAVE_KEY));
       if (isObject(current) && current.version === 1) {
+        const ratings = ratingsFrom(current.ratings);
         this.data = {
           version: 1,
-          ratings: ratingsFrom(current.ratings),
+          ratings,
           landmarks: landmarksFrom(current.landmarks),
           sound: current.sound === true,
           music: current.music !== false,
@@ -129,6 +142,10 @@ export class SaveStore {
           musicVolume: volumeFrom(current.musicVolume, DEFAULT_MUSIC_VOLUME),
           artQuality: current.artQuality === "low" ? "low" : "high",
           loadouts: loadoutsFrom(current.loadouts),
+          talents: sanitizeTalents(current.talents, totalStarsEarned(ratings)),
+          seenTowers: validTowerSelection(current.seenTowers),
+          reviewPrompts: sanitizeReviewPrompts(current.reviewPrompts),
+          reviewOpened: current.reviewOpened === true,
         };
         return;
       }
@@ -222,6 +239,34 @@ export class SaveStore {
 
   setGlobalLoadout(selection: readonly BuildingId[]) {
     this.setLoadout(GLOBAL_LOADOUT_KEY, selection);
+  }
+
+  setTalents(talents: TalentLevels) {
+    const clean = sanitizeTalents(talents, totalStarsEarned(this.data.ratings));
+    this.data = { ...this.data, talents: clean };
+    void this.flush();
+  }
+
+  markTowersSeen(towers: readonly BuildingId[]) {
+    const merged = validTowerSelection([...this.data.seenTowers, ...towers]);
+    if (merged.length === this.data.seenTowers.length) return;
+    this.data = { ...this.data, seenTowers: merged };
+    void this.flush();
+  }
+
+  markReviewPrompted(stageId: ReviewPromptStageId) {
+    if (this.data.reviewPrompts.includes(stageId)) return;
+    this.data = {
+      ...this.data,
+      reviewPrompts: [...this.data.reviewPrompts, stageId],
+    };
+    void this.flush();
+  }
+
+  markReviewOpened() {
+    if (this.data.reviewOpened) return;
+    this.data = { ...this.data, reviewOpened: true };
+    void this.flush();
   }
 
   async settled() {

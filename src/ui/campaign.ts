@@ -1,4 +1,4 @@
-import { CHAPTERS, STAGES } from "../content/campaign.ts";
+import { CHAPTERS, STAGES, unlockedThroughIndex } from "../content/campaign.ts";
 import type { Stage } from "../content/campaign.ts";
 import {
   WORLD_WIDTH,
@@ -10,35 +10,48 @@ import {
 } from "../content/world.ts";
 import type { Landmark } from "../content/world.ts";
 import type { Level, Point, BuildingId } from "../engine/types.ts";
+import type { GameAudio } from "../platform/audio.ts";
+import type { GameAnalytics } from "../platform/analytics.ts";
 import type { SaveStore } from "../platform/save.ts";
 import {
   makeLandmarkCrop,
   makeTrailScout,
   makeWorldMap,
+  trailPoint,
 } from "../render/world.ts";
 import { makeAnimalStrip } from "../render/wildlife.ts";
+import { reducedMotion } from "../render/motion.ts";
 import { drawPostcard } from "../render/postcard.ts";
 import { $, revealView } from "./dom.ts";
 import { icon } from "./icons.ts";
 import { mountLoadout } from "./loadout.ts";
 import { starsText } from "./ratings.ts";
+import { mountTalents } from "./talents.ts";
 
 export function mountCampaign(
   save: SaveStore,
+  audio: GameAudio,
+  analytics: GameAnalytics,
   onEnter: (level: Level, loadout?: readonly BuildingId[]) => void,
+  onUnlock?: () => void,
+  onMapReady?: () => void,
 ) {
   const playable = STAGES.filter((stage) => stage.level);
-  let mapSelection = playable.find((stage) => !save.snapshot.ratings[stage.id]) ?? playable[0];
+  let unlockedMax = unlockedThroughIndex(save.snapshot.ratings);
+  let mapSelection =
+    playable.filter((stage) => stage.index <= unlockedMax).at(-1) ?? playable[0];
   const lastStops = new Map<number, Stage>();
   const regionButtons: HTMLButtonElement[] = [];
   const regionLabels: HTMLElement[] = [];
   let visibleRegion = -1;
-  const showStageLoadout = mountLoadout(save);
+  const showStageLoadout = mountLoadout(save, audio, analytics);
+  const refreshTalents = mountTalents(save, audio, analytics);
   let campaignNodes: { node: HTMLButtonElement; small: HTMLSpanElement }[] = [];
   let landmarkButtons: { place: Landmark; button: HTMLButtonElement }[] = [];
   let wildlifeTimer: number | undefined;
   let descriptionExpanded = false;
   let descriptionRaf = 0;
+  let walkRaf = 0;
 
   function syncDescriptionToggle() {
     const wrap = $("stage-desc");
@@ -71,6 +84,89 @@ export function mountCampaign(
     item.style.left = (x / WORLD_WIDTH) * 100 + "%";
     item.style.top = (y / WORLD_HEIGHT) * 100 + "%";
   }
+  function setScoutPosition([x, y]: Point) {
+    positionWorldItem($("trail-scout"), [x + (x > 390 ? -13 : 10), y - 1]);
+  }
+  function applyUnlockVisibility(animate: boolean) {
+    campaignNodes.forEach(({ node }, index) => {
+      const visible = STAGES[index].index <= unlockedMax;
+      const wasHidden = node.hidden;
+      node.hidden = !visible;
+      if (animate && wasHidden && visible) {
+        node.classList.remove("unlocking");
+        void node.offsetWidth;
+        node.classList.add("unlocking");
+        window.setTimeout(() => node.classList.remove("unlocking"), 1000);
+      }
+    });
+    CHAPTERS.forEach((_, index) => {
+      const revealed = STAGES.some(
+        (stage) => stage.chapter === index && stage.index <= unlockedMax,
+      );
+      const wasHidden = regionButtons[index].hidden;
+      regionLabels[index].hidden = !revealed;
+      regionButtons[index].hidden = !revealed;
+      if (animate && wasHidden && revealed) {
+        for (const item of [regionLabels[index], regionButtons[index]]) {
+          item.classList.remove("unlocking");
+          void item.offsetWidth;
+          item.classList.add("unlocking");
+          window.setTimeout(() => item.classList.remove("unlocking"), 800);
+        }
+      }
+    });
+    visibleRegion = -1;
+  }
+  function spawnUnlockSpark(stage: Stage) {
+    const spark = document.createElement("span");
+    spark.className = "unlock-spark";
+    spark.style.setProperty("--region", CHAPTERS[stage.chapter].color);
+    positionWorldItem(spark, WAYPOINTS[stage.index]);
+    $("map-ambience").append(spark);
+    window.setTimeout(() => spark.remove(), 1100);
+  }
+  function walkScout(from: number, to: number, done: () => void) {
+    const scout = $("trail-scout");
+    cancelAnimationFrame(walkRaf);
+    if (reducedMotion.matches || from === to) {
+      setScoutPosition(WAYPOINTS[to]);
+      done();
+      return;
+    }
+    scout.classList.add("walking");
+    const start = performance.now();
+    const duration = 1050;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const point = trailPoint(to, eased);
+      setScoutPosition([point.px, point.py]);
+      if (t < 1) walkRaf = requestAnimationFrame(step);
+      else {
+        scout.classList.remove("walking");
+        setScoutPosition(WAYPOINTS[to]);
+        done();
+      }
+    };
+    walkRaf = requestAnimationFrame(step);
+  }
+  function cancelWalk() {
+    cancelAnimationFrame(walkRaf);
+    $("trail-scout").classList.remove("walking");
+  }
+  function revealNextStage(note: string) {
+    const next = STAGES[unlockedMax];
+    const from = STAGES[Math.max(0, unlockedMax - 1)];
+    selectStage(from, note);
+    spawnUnlockSpark(next);
+    onUnlock?.();
+    const message = "新站点已解锁 · " + (next.level?.name ?? "未知前路");
+    walkScout(from.index, next.index, () => {
+      selectStage(next, message);
+      campaignNodes[next.index].node.focus({ preventScroll: true });
+      onMapReady?.();
+    });
+  }
   function discoveredCount() {
     return MAP_LANDMARKS.filter((place) =>
       save.snapshot.landmarks.includes(place.id),
@@ -89,6 +185,7 @@ export function mountCampaign(
     }
   }
   function openLandmark(place: Landmark, crop: string) {
+    audio.playUi("ui-landmark");
     save.discover(place.id);
     updateDiscoveries();
     $("landmark-title").textContent = place.name;
@@ -163,6 +260,7 @@ export function mountCampaign(
         if (event.animationName === "animal-hop") sprite.classList.remove("react");
       });
       button.addEventListener("click", () => {
+        audio.playUi("ui-wildlife");
         const note = $("wildlife-note");
         note.textContent = animal.note;
         note.hidden = false;
@@ -190,8 +288,12 @@ export function mountCampaign(
       tab.title = chapter.name;
       tab.style.setProperty("--region", chapter.color);
       tab.addEventListener("click", () => {
-        const stages = STAGES.filter((stage) => stage.chapter === index);
-        selectStage(lastStops.get(index) ?? stages.find((stage) => stage.level) ?? stages[0]);
+        cancelWalk();
+        audio.playUi("ui-tab");
+        const stages = STAGES.filter(
+          (stage) => stage.chapter === index && stage.index <= unlockedMax,
+        );
+        selectStage(lastStops.get(index) ?? stages.at(-1) ?? stages[0]);
       });
       $("region-tabs").append(tab);
       regionButtons.push(tab);
@@ -225,13 +327,19 @@ export function mountCampaign(
         node.append(question);
       }
       positionWorldItem(node, WAYPOINTS[stage.index]);
-      node.addEventListener("click", () => selectStage(stage));
+      node.addEventListener("click", () => {
+        cancelWalk();
+        audio.playUi("ui-select");
+        selectStage(stage);
+      });
       $("map-nodes").append(node);
       return { node, small };
     });
+    applyUnlockVisibility(false);
     $("start-level").addEventListener("click", () => {
       const mission = mapSelection.level;
       if (!mission) return;
+      audio.playUi("ui-confirm");
       const chosen = save.globalLoadout.length
         ? save.globalLoadout
         : save.snapshot.loadouts[mapSelection.id];
@@ -239,6 +347,7 @@ export function mountCampaign(
     });
     const toggleDescription = () => {
       if (!$("stage-desc").classList.contains("expandable")) return;
+      audio.playUi("ui-tab");
       descriptionExpanded = !descriptionExpanded;
       syncDescriptionToggle();
     };
@@ -263,14 +372,22 @@ export function mountCampaign(
     if (visibleRegion !== stage.chapter) {
       visibleRegion = stage.chapter;
       stops.replaceChildren();
-      for (const stop of STAGES.filter((item) => item.chapter === stage.chapter)) {
+      const visibleStops = STAGES.filter(
+        (item) => item.chapter === stage.chapter && item.index <= unlockedMax,
+      );
+      stops.classList.toggle("multi-row", visibleStops.length > 3);
+      for (const stop of visibleStops) {
         const button = document.createElement("button");
         button.type = "button";
         button.dataset.stage = stop.id;
         button.classList.toggle("available", Boolean(stop.level));
         button.setAttribute("aria-label", `选择第 ${stop.id} 关，${stop.level?.name ?? "未开发"}`);
         button.innerHTML = icon(stop.level ? "flag" : "trail") + "<span>" + stop.id + "</span>";
-        button.addEventListener("click", () => selectStage(stop));
+        button.addEventListener("click", () => {
+          cancelWalk();
+          audio.playUi("ui-select");
+          selectStage(stop);
+        });
         stops.append(button);
       }
     }
@@ -297,6 +414,7 @@ export function mountCampaign(
     });
     updateRegionStops(stage);
     showStageLoadout(map ?? null);
+    refreshTalents();
     const stars = level ? save.snapshot.ratings[id] ?? 0 : 0;
     campaignNodes.forEach(({ node, small }, i) => {
       const mission = STAGES[i],
@@ -319,7 +437,7 @@ export function mountCampaign(
         .length +
       " 关";
     const [x, y] = WAYPOINTS[index];
-    positionWorldItem($("trail-scout"), [x + (x > 390 ? -13 : 10), y - 1]);
+    setScoutPosition([x, y]);
     $("map-chapter").textContent = CHAPTERS[chapter].name;
     $("map-mission-status").classList.toggle("open", Boolean(level));
     $("map-mission-status").textContent = level
@@ -359,9 +477,20 @@ export function mountCampaign(
   return {
     open(id = mapSelection.id, note = "") {
       revealView("campaign-view");
-      const next = STAGES.find((stage) => stage.id === id) ?? STAGES[0];
-      selectStage(next, note);
-      campaignNodes[next.index].node.focus({ preventScroll: true });
+      cancelWalk();
+      const nextUnlocked = unlockedThroughIndex(save.snapshot.ratings);
+      const target =
+        STAGES.find((stage) => stage.id === id && stage.index <= nextUnlocked) ??
+        STAGES[nextUnlocked];
+      if (nextUnlocked > unlockedMax) {
+        unlockedMax = nextUnlocked;
+        applyUnlockVisibility(true);
+        revealNextStage(note);
+        return;
+      }
+      selectStage(target, note);
+      campaignNodes[target.index].node.focus({ preventScroll: true });
+      onMapReady?.();
     },
   };
 }

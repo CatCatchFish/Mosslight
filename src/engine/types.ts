@@ -6,7 +6,7 @@ import type { Guard, GuardPost } from "./guards.ts";
 export type Point = readonly [x: number, y: number];
 export type TowerId =
   | "arrow" | "cannon" | "frost" | "ember" | "storm" | "ballista" | "net" | "prism"
-  | "hail-mortar" | "glaze-lance" | "salt-caster";
+  | "hail-mortar" | "glaze-lance" | "salt-caster" | "spore-caster";
 export type GuardPostId = "guard-post" | "griffin-roost" | "frost-kennel" | "reed-post";
 export type BuildingId = TowerId | GuardPostId;
 export type EnemyId =
@@ -21,7 +21,8 @@ export type EnemyId =
   | "moss-badger" | "mirror-shrimp" | "rivet-mite" | "frost-porcupine"
   | "mire-treant" | "mire-croc" | "vine-viper" | "mire-mycelid" | "bloat-sporer"
   | "mudskipper" | "shield-crayfish" | "lantern-moth" | "whisker-catfish" | "stone-clam"
-  | "reed-spider" | "spider-egg" | "reed-spiderling" | "sluice-dragon";
+  | "reed-spider" | "spider-egg" | "reed-spiderling" | "mire-elder" | "sluice-dragon"
+  | "mire-matriarch" | "spore-pod";
 export type BattlePhase = "ready" | "active" | "won" | "lost";
 export type CreatureSound =
   | "ooze" | "scurry" | "bark" | "shell" | "stone" | "wing" | "crystal" | "boss" | "ram" | "moth"
@@ -34,9 +35,15 @@ export interface TowerStats {
   readonly interval: number;
   readonly splash?: number;
   readonly slow?: number;
-  readonly groundOnly?: boolean;
   readonly split?: boolean;
   readonly salt?: { readonly armor: number; readonly duration: number };
+  readonly spore?: {
+    readonly damagePerSecond: number;
+    readonly duration: number;
+    readonly spread: number;
+    readonly jumps: number;
+    readonly burst?: { readonly radius: number; readonly damage: number };
+  };
   readonly duration?: number;
   readonly chilledDamage?: number;
   readonly color?: string;
@@ -107,6 +114,7 @@ export interface EnemySpec {
   readonly pace: number;
   readonly note: string;
   readonly soundFamily: CreatureSound;
+  readonly hpTier?: "base" | "elite";
   readonly boss?: boolean;
   readonly miniboss?: boolean;
   readonly airborne?: boolean;
@@ -117,6 +125,7 @@ export interface EnemySpec {
   readonly regeneration?: { readonly rate: number; readonly delay: number };
   readonly enrage?: { readonly speedMultiplier: number; readonly slowResistance: number };
   readonly gasBurst?: { readonly radius: number; readonly damage: number; readonly burnDamage: number; readonly burnSeconds: number };
+  readonly bloomBurst?: { readonly radius: number; readonly damage: number };
   readonly ability?: EnemyAbility;
 }
 
@@ -268,8 +277,6 @@ export interface MireCast {
   readonly startedAt: number;
   readonly direction?: Point;
   readonly aim?: Point;
-  readonly passenger?: Enemy;
-  readonly origin?: number;
   readonly lanes?: readonly { readonly route: Route; readonly from: number; readonly to: number }[];
   readonly struck?: Set<Guard>;
 }
@@ -319,7 +326,16 @@ export interface Enemy {
   mireFractured?: boolean;
   mireReadyAt?: number;
   salt?: Map<number, number>;
+  spore?: {
+    until: number;
+    duration: number;
+    damagePerSecond: number;
+    jumps: number;
+    spread: number;
+    burst?: { readonly radius: number; readonly damage: number };
+  };
   carriedBy?: Enemy;
+  passenger?: Enemy;
   egg?: Enemy;
 }
 
@@ -354,8 +370,9 @@ export interface Effect extends Location {
     | "guard-hit" | "guard-strike" | "guard-spear" | "weir-surge" | "mammoth-quake" | "rail-impact" | "chief-cleave"
     | "enemy-vent" | "enemy-vent-stop" | "enemy-quill-launch" | "enemy-quill-impact" | "mire-blast"
     | "antler-sweep" | "tower-freeze" | "tower-crack" | "tower-thaw"
-    | "mire-tide-warning" | "mire-tide" | "mire-tide-break" | "mire-drag" | "mire-shell-warning" | "mire-shell" | "mire-hatch" | "mire-brace"
-    | "burn-ignite";
+    | "mire-tide-warning" | "mire-tide" | "mire-tide-break" | "mire-drag" | "mire-shell-warning" | "mire-shell" | "mire-hatch" | "mire-brace" | "mire-summon"
+    | "mire-bloom" | "mire-bloom-burst"
+    | "burn-ignite" | "spore-burst" | "spore-spread";
   readonly path?: string | null;
   readonly enemy?: EnemyId;
   readonly post?: GuardPostId;

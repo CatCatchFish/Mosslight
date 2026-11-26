@@ -310,10 +310,10 @@ function newGuard(post: GuardPost, health: number, time = 0): Guard {
 }
 
 export function createGuardPost(index: number, origin: Point, rally: Point, findPath: GuardPath,
-  type: GuardPostId = "guard-post", canLand?: GuardPost["canLand"], builtAt?: number): GuardPost {
+  type: GuardPostId = "guard-post", canLand?: GuardPost["canLand"], builtAt?: number, now = builtAt ?? 0): GuardPost {
   const { health, squad } = GUARD_BUILDINGS[type].base;
   const post: GuardPost = { type, index, origin, rally, guards: [], findPath, canLand, tier: 1, builtAt };
-  for (let i = 0; i < squad; i++) post.guards.push(newGuard(post, health, builtAt ?? 0));
+  for (let i = 0; i < squad; i++) post.guards.push(newGuard(post, health, now));
   return post;
 }
 
@@ -322,10 +322,10 @@ function adjustGuardStats(guard: Guard, previous: GuardStats, next: GuardStats, 
   else guard.respawnAt = time + Math.max(0, guard.respawnAt - time) * next.respawn / previous.respawn;
 }
 
-export function reinforceGuardPost(post: GuardPost, time: number, branch?: GuardBranch, wave = 0) {
+export function reinforceGuardPost(post: GuardPost, time: number, branch?: GuardBranch, wave = 0, animate = true) {
   const previous = guardStats(post);
   const previousUnits = post.guards.map((guard) => guardUnitStats(post, guard));
-  post.upgradeFrom = { at: time, tier: post.tier, branch: post.branch };
+  post.upgradeFrom = animate ? { at: time, tier: post.tier, branch: post.branch } : undefined;
   post.tier = post.tier === 1 ? 2 : post.tier === 2 ? 3 : 4;
   post.branch = branch ?? post.branch;
   const next = guardStats(post);
@@ -395,7 +395,7 @@ export function guardBraceReady(guard: Guard, post: GuardPost, time: number) {
 }
 
 export function strikeGuardWithMire(post: GuardPost, guard: Guard, attacker: Enemy, time: number,
-  effects: Effect[], amount: number, displacement?: Point) {
+  effects: Effect[], amount: number, displacement?: Point, respawnFactor = 1) {
   const stats = guardUnitStats(post, guard);
   const x = guard.x, y = guard.y;
   const dx = x - attacker.x, dy = y - attacker.y;
@@ -409,7 +409,7 @@ export function strikeGuardWithMire(post: GuardPost, guard: Guard, attacker: Ene
   if (!guard.hp) {
     releaseGuard(guard);
     guard.attack = undefined;
-    guard.respawnAt = time + stats.respawn;
+    guard.respawnAt = time + stats.respawn * respawnFactor;
     return;
   }
   if (!displacement) return;
@@ -467,7 +467,7 @@ function followGuardPath(guard: Guard, step: number, time: number) {
 
 function canBlockBase(enemy: Enemy, post: GuardPost) {
   const spec = ENEMIES[enemy.type];
-  return enemy.hp > 0 && !enemy.escaped && (!spec.boss || hasAimedBossMelee(enemy)) &&
+  return enemy.hp > 0 && !enemy.escaped && !enemy.carriedBy && (!spec.boss || hasAimedBossMelee(enemy)) &&
     (isFlyingGuardPost(post.type) || !isAirborne(enemy)) && !isBurrowing(enemy) && !isInTunnel(enemy) &&
     !(spec.ability?.kind === "dash" && enemy.action?.phase === "active");
 }
@@ -552,6 +552,7 @@ export function updateGuards(
   effects: Effect[], hit: (target: Enemy, damage: number) => void,
   throwSpear: (guard: Guard, enemy: Enemy) => void,
   quills: GuardQuill[],
+  respawnFactor = 1,
 ) {
   const roster = Array.from(posts).flatMap((post) =>
     post.guards.map((guard, i) => ({ guard, i, post, stats: guardUnitStats(post, guard) })));
@@ -577,7 +578,7 @@ export function updateGuards(
     if (guard.hp === 0) {
       release(guard);
       guard.attack = undefined;
-      guard.respawnAt = time + stats.respawn;
+      guard.respawnAt = time + stats.respawn * respawnFactor;
     }
   };
 

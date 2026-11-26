@@ -33,6 +33,10 @@ test("the Web save migrates existing ratings and landmarks", async () => {
     musicVolume: 40,
     artQuality: "high",
     loadouts: {},
+    talents: {},
+    seenTowers: [],
+    reviewPrompts: [],
+    reviewOpened: false,
   });
   assert.deepEqual(JSON.parse(data.get(SAVE_KEY) ?? ""), store.snapshot);
 });
@@ -67,6 +71,10 @@ test("back-to-back writes preserve progression and independent audio settings", 
     musicVolume: 73,
     artQuality: "low",
     loadouts: { "06": ["cannon", "ember"], "10": ["storm", "arrow", "ballista"] },
+    talents: {},
+    seenTowers: [],
+    reviewPrompts: [],
+    reviewOpened: false,
   });
 });
 

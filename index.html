@@ -15,7 +15,7 @@
     <title>微光防线 · 像素塔防</title>
   </head>
   <body>
-    <audio id="soundtrack" loop preload="none" hidden></audio>
+    <audio id="soundtrack" loop preload="auto" hidden></audio>
     <div id="storage-status" class="storage-status" role="status" hidden></div>
     <main id="campaign-view" class="campaign" hidden>
       <section class="map-frame" aria-label="主线路线">
@@ -51,7 +51,7 @@
               id="map-nodes"
               class="map-nodes"
               role="group"
-              aria-label="18 个关卡站点"
+              aria-label="关卡站点"
             ></div>
             <div
               id="landmark-pins"
@@ -122,7 +122,17 @@
               aria-haspopup="dialog"
             >
               <span data-icon="hammer"></span><span>炮塔编队</span>
+              <span id="loadout-new-badge" class="loadout-new-pill" hidden>新</span>
               <span id="loadout-total" aria-hidden="true"></span>
+            </button>
+            <button
+              class="loadout-trigger talents-trigger"
+              id="open-talents"
+              type="button"
+              aria-haspopup="dialog"
+            >
+              <span data-icon="lantern"></span><span>营地加护</span>
+              <span id="talents-total" aria-hidden="true"></span>
             </button>
           </div>
           <div aria-label="旅途进度" class="map-progress">
@@ -130,6 +140,7 @@
             <span
               ><i data-icon="lantern"></i><span id="discovery-count"></span
             ></span>
+            <span id="debug-build-badge" class="debug-build-badge" hidden>调试版 · 全关卡三星</span>
           </div>
         </aside>
       </section>
@@ -245,6 +256,74 @@
         <button class="action" type="button" id="resume-game"><span data-icon="play"></span>重新进入</button>
       </div>
     </main>
+    <dialog id="analytics-consent-dialog" class="analytics-consent-dialog" aria-labelledby="analytics-consent-title" aria-describedby="analytics-consent-lead">
+      <div class="analytics-consent-body">
+        <div class="analytics-consent-head">
+          <span class="analytics-consent-mark" data-icon="shield" aria-hidden="true"></span>
+          <div>
+            <span class="analytics-consent-kicker">可选数据服务 · 未同意前不初始化 SDK</span>
+            <h2 id="analytics-consent-title">隐私保护与数据授权</h2>
+          </div>
+        </div>
+        <p id="analytics-consent-lead" class="analytics-consent-lead">《微光防线》为单机游戏，进度仅存本机。是否同意启用易玩（上海）网络科技有限公司提供的 TapSDK / TapDB，用于设备兼容排查与关卡体验分析？</p>
+        <ul class="analytics-consent-facts">
+          <li>
+            <span data-icon="sparkle" aria-hidden="true"></span>
+            <div><strong>收集目的与范围</strong><span>同意后由 TapDB 采集本机随机统计标识、基础设备与系统信息（含 AndroidID、OAID、GAID、TDID、install_uuid、device_id5）及关卡、炮塔、编队、天赋 7 项游戏事件</span></div>
+          </li>
+          <li>
+            <span data-icon="shield" aria-hidden="true"></span>
+            <div><strong>收集方式与边界</strong><span>仅在您同意后初始化并按需采集，无后台轮询；不收集姓名、手机号、位置、通讯录、相机或麦克风，无广告、无内购、无商业追踪</span></div>
+          </li>
+          <li>
+            <span data-icon="book" aria-hidden="true"></span>
+            <div><strong>自主选择与撤回</strong><span>选择“不同意（仅单机）”不会初始化统计或评价 SDK，也不影响单机玩法；该授权同时控制 TapTap 评价入口，可随时在“系统设置 → 隐私政策”中撤回</span></div>
+          </li>
+        </ul>
+        <button class="analytics-consent-policy" type="button" id="analytics-consent-policy">
+          <span data-icon="book" aria-hidden="true"></span>
+          <span><strong>阅读完整《隐私政策》</strong><small>查看收集目的、方式、范围、频次、第三方信息共享清单与删除渠道</small></span>
+          <span class="analytics-consent-chevron" aria-hidden="true">›</span>
+        </button>
+        <p class="analytics-consent-note">未满 14 周岁儿童请在监护人阅读并同意后决定是否开启。关闭授权时 TapTap 评价入口也不可用。</p>
+        <p id="analytics-consent-error" role="alert" hidden></p>
+      </div>
+      <label class="analytics-consent-ack analytics-consent-ack-footer" for="analytics-consent-ack">
+        <input type="checkbox" id="analytics-consent-ack" />
+        <span>我已阅读并同意《隐私政策》，并知悉 TapDB 将收集 AndroidID、OAID、GAID、TDID、install_uuid、device_id5 及上述设备与游戏数据用于统计分析。</span>
+      </label>
+      <div class="dialog-actions">
+        <button class="dialog-secondary" type="button" id="analytics-consent-decline">不同意（仅单机）</button>
+        <button class="action" type="button" id="analytics-consent-accept">同意并启用</button>
+      </div>
+    </dialog>
+    <dialog id="review-dialog" class="review-dialog" aria-labelledby="review-title" aria-describedby="review-body">
+      <div class="review-head">
+        <span class="review-mark" data-icon="lantern" aria-hidden="true"></span>
+        <div>
+          <span class="review-kicker">微光防线 · 玩家反馈</span>
+          <h2 id="review-title">听听你的真实想法</h2>
+        </div>
+      </div>
+      <div id="review-body" class="review-body">
+        <p>玩到这里，想听听你的真实想法。</p>
+        <p>去 TapTap 留下你的评价吧——不管是称赞还是吐槽，都会帮我们把游戏做得更好。</p>
+      </div>
+      <p class="review-privacy-note">仅在你已开启 TapTap 数据服务授权时可用。点击“去 TapTap 评价”会单次调用评价 SDK，读取基础设备与系统信息（系统版本、设备型号、AndroidID、OAID、GAID、TDID）并检测本机是否安装 TapTap 客户端以关联打开评价页，详见 <button type="button" class="inline-policy-link" id="review-policy">《隐私政策》</button>。</p>
+      <p id="review-status" class="review-status" role="status" hidden></p>
+      <div class="dialog-actions">
+        <button class="dialog-secondary" type="button" id="review-later">以后再说</button>
+        <button class="action" type="button" id="review-open">去 TapTap 评价</button>
+      </div>
+    </dialog>
+    <dialog id="privacy-dialog" class="privacy-policy-dialog" aria-label="隐私政策">
+      <div class="privacy-policy-content" id="privacy-policy-content"></div>
+      <div class="dialog-actions privacy-policy-actions">
+        <span class="privacy-consent-status" id="privacy-consent-status" aria-live="polite"></span>
+        <button class="dialog-secondary" type="button" id="privacy-consent-action" hidden></button>
+        <button class="action" type="button" id="close-privacy-policy">关闭</button>
+      </div>
+    </dialog>
     <dialog
       id="settings-dialog"
       class="settings-dialog"
@@ -300,6 +379,9 @@
           <span data-icon="reset"></span>重开关卡
         </button>
       </div>
+      <button class="dialog-secondary settings-policy" type="button" id="privacy-policy">
+        <span data-icon="book"></span>隐私政策
+      </button>
       <button class="dialog-secondary settings-exit" type="button" id="exit-game">
         <span data-icon="exit"></span>退出游戏
       </button>
@@ -353,6 +435,44 @@
           <strong id="loadout-count"></strong>
           <button type="button" id="save-loadout" class="action">保存编队</button>
         </div>
+      </div>
+    </dialog>
+    <dialog
+      id="talents-dialog"
+      class="loadout-dialog talents-dialog"
+      aria-labelledby="talents-title"
+    >
+      <div class="menu-head">
+        <div class="loadout-heading">
+          <h2 id="talents-title">营地微光加护</h2>
+          <p id="talents-stars" class="loadout-stage"></p>
+        </div>
+        <form method="dialog">
+          <button
+            id="close-talents"
+            class="close-menu"
+            aria-label="关闭营地加护"
+          ></button>
+        </form>
+      </div>
+      <div class="talents-banner" aria-label="微光灯座状态">
+        <div class="talents-crest-wrap">
+          <canvas id="talents-crest" width="60" height="60" aria-hidden="true"></canvas>
+        </div>
+        <div class="talents-meter">
+          <div class="talents-meter-top">
+            <span class="talents-star-pill" id="talents-available-pill">★ 0 可用</span>
+            <span class="talents-rank-count" id="talents-rank-count">已点亮 0 / 18 阶</span>
+          </div>
+          <div class="talents-progress-track" aria-hidden="true">
+            <span id="talents-progress-fill"></span>
+          </div>
+        </div>
+      </div>
+      <div id="talents-grid" class="talents-grid" role="group" aria-label="星级天赋列表"></div>
+      <div class="talents-footer">
+        <span class="talents-tip">通关得星即可点亮灯座加护，随时可重置。</span>
+        <button type="button" id="talents-reset" class="dialog-secondary">重置</button>
       </div>
     </dialog>
     <dialog

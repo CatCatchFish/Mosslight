@@ -1,28 +1,29 @@
 apply plugin: 'com.android.application'
 
-def taptapProperties = new Properties()
-def taptapPropertiesFile = rootProject.file('local.properties')
-if (taptapPropertiesFile.exists()) {
-    taptapPropertiesFile.withInputStream { taptapProperties.load(it) }
-}
-def taptapClientId = project.findProperty('TAPTAP_CLIENT_ID') ?: taptapProperties.getProperty('taptap.clientId', '')
-def taptapClientToken = project.findProperty('TAPTAP_CLIENT_TOKEN') ?: taptapProperties.getProperty('taptap.clientToken', '')
-
 android {
     namespace = "com.mosslight.expedition"
     compileSdk = rootProject.ext.compileSdkVersion
-    buildFeatures {
-        buildConfig = true
+    buildFeatures { buildConfig true }
+    def tapDBClientId = (project.findProperty("TAPDB_CLIENT_ID") ?: System.getenv("TAPDB_CLIENT_ID") ?: "").toString()
+    def tapDBClientToken = (project.findProperty("TAPDB_CLIENT_TOKEN") ?: System.getenv("TAPDB_CLIENT_TOKEN") ?: "").toString()
+    def tapDBRegion = (project.findProperty("TAPDB_REGION") ?: "CN").toString().trim().toUpperCase(Locale.ROOT)
+    if (!(tapDBRegion in ["CN", "GLOBAL"])) {
+        throw new GradleException("TAPDB_REGION must be CN or GLOBAL")
+    }
+    def javaString = { String value ->
+        value.replace("\\", "\\\\").replace("\"", "\\\"")
+            .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
     }
     defaultConfig {
         applicationId "com.mosslight.expedition"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 25
-        versionName "1.0.0"
+        versionCode 35
+        versionName "1.1.4"
+        buildConfigField "String", "TAPDB_CLIENT_ID", "\"${javaString(tapDBClientId)}\""
+        buildConfigField "String", "TAPDB_CLIENT_TOKEN", "\"${javaString(tapDBClientToken)}\""
+        buildConfigField "String", "TAPDB_REGION", "\"${javaString(tapDBRegion)}\""
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField "String", "TAPTAP_CLIENT_ID", "\"${taptapClientId}\""
-        buildConfigField "String", "TAPTAP_CLIENT_TOKEN", "\"${taptapClientToken}\""
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -44,14 +45,13 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.taptap.sdk:tap-core:4.11.1'
-    implementation 'com.taptap.sdk:tap-login:4.11.1'
-    implementation 'com.taptap.sdk:tap-compliance:4.11.1'
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    implementation 'com.taptap.sdk:tap-core:4.11.1'
+    implementation 'com.taptap.sdk:tap-review:4.11.1'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

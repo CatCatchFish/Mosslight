@@ -10,42 +10,40 @@ function chip(p: Shape, x: number, y: number, width: number, height: number, col
   p(color, [x, y], [x + width, y], [x + width, y + height], [x, y + height]);
 }
 
-export function paintMireTreant(raw: Shape, frame: number, facing: Facing, casting: boolean) {
-  // Squash the tall tree silhouette into the game's chibi proportions while keeping the authored shapes.
-  const p: Shape = (color, ...points) =>
-    raw(color, ...points.map(([x, y]): [number, number] => [x * 1.16, y * 0.78]));
+export function paintMireTreant(p: Shape, frame: number, facing: Facing, casting: boolean) {
   const side = facing === "east" || facing === "west";
   const rear = facing === "north";
-  const stride = [2.2, 0.7, -2.2, -0.7][frame];
-  const bob = casting ? [-1.0, -2.0, -1.5, -0.8][frame] : [0.4, -0.8, 0.4, -0.6][frame];
-  const sway = casting ? [2.0, -2.0, 1.5, -1.4][frame] : [1.3, 0.4, -1.3, -0.4][frame];
+  const stride = [2.4, 0.8, -2.4, -0.8][frame];
+  const bob = casting ? [-1.0, -2.2, -1.6, -0.8][frame] : [0.4, -1.0, 0.4, -0.8][frame];
+  const sway = casting ? [2.2, -2.2, 1.6, -1.5][frame] : [1.4, 0.5, -1.4, -0.5][frame];
 
-  const barkDeep = "#30281f";
-  const barkDark = "#493d2d";
-  const barkMid = "#6b5a40";
-  const barkLight = "#95815d";
-  const leafDark = "#263a30";
-  const leafMid = "#3f5f45";
-  const leafLight = "#648256";
-  const leafRim = "#91a874";
-  const moss = "#758c5c";
-  const mossLight = "#a3b47d";
-  const eyeGlow = casting ? "#e9c46a" : "#e8b45a";
-  const eyeCore = casting ? "#fff2b8" : "#ffe7a2";
-  const bud = casting ? "#f0d38a" : "#cfae68";
+  const barkDeep = "#2c231b";
+  const barkDark = "#473a2b";
+  const barkMid = "#6d5b41";
+  const barkLight = "#9a845e";
+  const barkRim = "#bda77c";
+  const leafDark = "#23382d";
+  const leafMid = "#3d6146";
+  const leafLight = "#648957";
+  const leafRim = "#96b376";
+  const moss = "#76915c";
+  const mossLight = "#a8bd82";
+  const eyeGlow = casting ? "#f0ca6e" : "#e8b458";
+  const eyeCore = casting ? "#fff6c7" : "#ffe9a8";
+  const bud = casting ? "#f5dc93" : "#d4b26a";
 
-  // Helper for organic scalloped foliage tufts (distinctly tree-bough clusters, never a smooth dome!)
+  // Organic scalloped foliage clusters (lush cypress/willow boughs in crisp 1:1 proportions)
   const tuft = (q: Shape, cx: number, cy: number, rx: number, ry: number) => {
     const pts = (sx: number, sy: number, pad = 0): [number, number][] => [
-      [cx - sx - pad, cy + sy * 0.15],
-      [cx - sx * 0.85 - pad * 0.7, cy - sy * 0.65 - pad * 0.7],
-      [cx - sx * 0.25, cy - sy - pad],
-      [cx + sx * 0.3, cy - sy * 0.95 - pad],
-      [cx + sx * 0.88 + pad * 0.7, cy - sy * 0.55 - pad * 0.7],
+      [cx - sx - pad, cy + sy * 0.16],
+      [cx - sx * 0.84 - pad * 0.7, cy - sy * 0.64 - pad * 0.7],
+      [cx - sx * 0.24, cy - sy - pad],
+      [cx + sx * 0.3, cy - sy * 0.94 - pad],
+      [cx + sx * 0.86 + pad * 0.7, cy - sy * 0.54 - pad * 0.7],
       [cx + sx + pad, cy + sy * 0.2],
-      [cx + sx * 0.65 + pad * 0.5, cy + sy * 0.82 + pad * 0.6],
-      [cx, cy + sy * 0.65 + pad * 0.5],
-      [cx - sx * 0.68 - pad * 0.5, cy + sy * 0.85 + pad * 0.6],
+      [cx + sx * 0.64 + pad * 0.5, cy + sy * 0.8 + pad * 0.6],
+      [cx, cy + sy * 0.64 + pad * 0.5],
+      [cx - sx * 0.66 - pad * 0.5, cy + sy * 0.82 + pad * 0.6],
     ];
     q(ink, ...pts(rx, ry, 1.4));
     q(leafDark, ...pts(rx, ry, 0));
@@ -63,232 +61,229 @@ export function paintMireTreant(raw: Shape, frame: number, facing: Facing, casti
       [cx + rx * 0.34, cy - ry * 0.54], [cx + rx * 0.1, cy - ry * 0.34], [cx - rx * 0.22, cy - ry * 0.36]);
   };
 
-  // Root-leg anchored securely into hip (top tracks bob so it can NEVER detach!)
+  // Tall gnarled deadwood crown-horns breaking cleanly above the leafy canopy
+  const drawAntler = (q: Shape, bx: number, by: number, dir: number, tall: number) => {
+    const midX = bx + dir * 4.5, midY = by - tall * 0.58;
+    const tipX = bx + dir * 7.2, tipY = by - tall;
+    const forkX = bx + dir * 1.8, forkY = by - tall * 0.84;
+    q(ink,
+      [bx - dir * 1.4, by + 1], [bx + dir * 2.2, by + 1], [midX + dir * 1.8, midY + 1.2],
+      [tipX + dir * 1.2, tipY - 1.2], [tipX - dir * 1.4, tipY - 0.6], [midX - dir * 0.4, midY - 0.8],
+      [forkX + dir * 1.0, forkY - 1.2], [forkX - dir * 1.4, forkY - 0.4], [midX - dir * 1.8, midY + 0.6]);
+    q(barkMid,
+      [bx - dir * 0.4, by], [bx + dir * 1.2, by], [midX + dir * 0.8, midY + 0.4],
+      [tipX + dir * 0.2, tipY], [tipX - dir * 0.6, tipY + 0.4], [midX - dir * 0.5, midY - 0.2],
+      [forkX + dir * 0.2, forkY], [forkX - dir * 0.6, forkY + 0.4], [midX - dir * 0.9, midY + 0.4]);
+    chip(q, midX - 0.5, midY - 1.2, 1.3, 2.2, barkRim);
+  };
+
+  // Strong forked root-legs (natural tall stride, never squashed)
   const drawRootLeg = (hipX: number, dir: number, far: boolean) => {
-    const stepX = side ? stride * dir : stride * dir * 0.22;
-    const lift = dir * stride < 0 ? 1.2 : 0;
-    const hipY = -11 + bob;
+    const stepX = side ? stride * dir : stride * dir * 0.25;
+    const lift = dir * stride < 0 ? 1.5 : 0;
+    const hipY = -12 + bob;
     const footX = hipX + stepX;
-    const footY = (far ? 0 : 1.2) - lift;
-    const midX = (hipX + footX) * 0.5 + (side ? dir * 0.7 : 0);
+    const footY = (far ? -0.5 : 1.2) - lift;
+    const midX = (hipX + footX) * 0.5 + (side ? dir * 0.8 : 0);
     const midY = (hipY + footY) * 0.5;
     p(ink,
-      [hipX - 3.6, hipY - 1.5], [hipX + 3.4, hipY - 1.5],
-      [midX + 3.4, midY], [footX + 5.2, footY + 0.6], [footX + 2.8, footY + 2.1],
-      [footX + 0.4, footY + 0.5], [footX - 1.6, footY + 2.1], [footX - 4.6, footY + 1.1],
-      [midX - 3.4, midY]);
+      [hipX - 3.4, hipY - 1.8], [hipX + 3.2, hipY - 1.8],
+      [midX + 3.1, midY], [footX + 5.0, footY + 0.6], [footX + 2.6, footY + 2.0],
+      [footX + 0.3, footY + 0.5], [footX - 1.5, footY + 2.0], [footX - 4.4, footY + 1.0],
+      [midX - 3.1, midY]);
     p(far ? barkDark : barkMid,
-      [hipX - 2.3, hipY - 0.5], [hipX + 2.2, hipY - 0.5],
-      [midX + 2.1, midY], [footX + 3.7, footY + 0.2], [footX + 2.1, footY + 1.0],
-      [footX + 0.3, footY - 0.5], [footX - 1.1, footY + 1.0], [footX - 3.2, footY + 0.4],
-      [midX - 2.2, midY]);
+      [hipX - 2.1, hipY - 0.6], [hipX + 2.0, hipY - 0.6],
+      [midX + 1.9, midY], [footX + 3.5, footY + 0.2], [footX + 2.0, footY + 1.0],
+      [footX + 0.2, footY - 0.4], [footX - 1.0, footY + 1.0], [footX - 3.0, footY + 0.4],
+      [midX - 2.0, midY]);
     if (!far) {
-      p(barkLight, [hipX - 1.2, hipY + 0.5], [hipX + 0.6, hipY + 0.5], [midX + 0.5, midY + 1.5], [midX - 1.1, midY + 1.5]);
-      chip(p, footX - 2.4, footY - 1.8, 2.2, 1.1, moss);
+      p(barkLight, [hipX - 1.1, hipY + 0.4], [hipX + 0.6, hipY + 0.4], [midX + 0.5, midY + 1.8], [midX - 1.0, midY + 1.8]);
+      chip(p, footX - 2.2, footY - 2.0, 2.2, 1.2, moss);
     }
   };
 
-  // Gnarled wooden branch-arm with forked twig claws; placed cleanly so it never hides the face
+  // Gnarled wooden branch-arm with forked twig claws; lifts proudly when casting
   const drawBranchArm = (ax: number, ay: number, s: number, far: boolean, sideArm: boolean) => {
-    const swing = sideArm ? -stride * s * 0.85 : s * 0.8;
+    const swing = sideArm ? -stride * s * 0.9 : s * 0.8;
     const elbowX = casting
-      ? ax + s * (sideArm ? 5.4 : 5.0)
+      ? ax + s * (sideArm ? 5.6 : 5.2)
       : ax + s * (far ? 4.4 : 5.2) + swing * 0.45;
     const elbowY = casting
-      ? ay - (sideArm ? 2.0 : 2.8)
-      : ay + (sideArm ? 3.2 : 2.8);
+      ? ay - (sideArm ? 3.2 : 3.8)
+      : ay + (sideArm ? 3.4 : 3.0);
     const handX = casting
-      ? ax + s * (sideArm ? 9.4 : 8.6)
+      ? ax + s * (sideArm ? 9.8 : 9.0)
       : ax + s * (far ? 7.6 : 8.8) + swing;
     const handY = casting
-      ? ay - (sideArm ? 7.4 : 8.2)
-      : ay + (sideArm ? 5.2 : 5.8) + Math.abs(stride) * 0.25;
+      ? ay - (sideArm ? 9.5 : 10.2)
+      : ay + (sideArm ? 5.6 : 6.2) + Math.abs(stride) * 0.25;
 
     p(ink,
-      [ax - s * 1.4, ay - 2.4], [elbowX, elbowY - 2.2], [handX, handY - 2.0],
+      [ax - s * 1.4, ay - 2.3], [elbowX, elbowY - 2.1], [handX, handY - 1.9],
       [handX + s * 4.0, handY - 4.2], [handX + s * 1.8, handY - 0.5],
       [handX + s * 4.6, handY + 0.6], [handX + s * 1.4, handY + 1.7],
       [handX + s * 2.5, handY + 4.0], [handX - s * 1.3, handY + 2.0],
-      [elbowX - s * 0.8, elbowY + 2.2], [ax - s * 1.4, ay + 2.2]);
+      [elbowX - s * 0.8, elbowY + 2.1], [ax - s * 1.4, ay + 2.1]);
     p(far ? barkDark : barkMid,
-      [ax - s * 0.5, ay - 1.3], [elbowX, elbowY - 1.1], [handX, handY - 1.0],
+      [ax - s * 0.5, ay - 1.2], [elbowX, elbowY - 1.0], [handX, handY - 0.9],
       [handX + s * 2.6, handY - 2.8], [handX + s * 1.0, handY - 0.2],
       [handX + s * 3.1, handY + 0.5], [handX + s * 0.7, handY + 1.0],
       [handX + s * 1.4, handY + 2.6], [handX - s * 0.5, handY + 1.0],
-      [elbowX - s * 0.4, elbowY + 1.1], [ax - s * 0.5, ay + 1.1]);
+      [elbowX - s * 0.4, elbowY + 1.0], [ax - s * 0.5, ay + 1.0]);
     if (!far) {
-      p(barkLight, [ax, ay - 0.6], [elbowX, elbowY - 0.5], [handX - s * 0.6, handY - 0.4], [elbowX, elbowY + 0.4]);
-      // Small leafy sprout on forearm
-      p(leafMid, [elbowX - 1.5, elbowY - 2.6], [elbowX + 1.5, elbowY - 3.6], [elbowX + 2.2, elbowY - 1], [elbowX - 0.6, elbowY - 0.5]);
+      p(barkLight, [ax, ay - 0.5], [elbowX, elbowY - 0.4], [handX - s * 0.6, handY - 0.3], [elbowX, elbowY + 0.4]);
+      p(leafMid, [elbowX - 1.5, elbowY - 2.8], [elbowX + 1.5, elbowY - 3.8], [elbowX + 2.2, elbowY - 1], [elbowX - 0.6, elbowY - 0.5]);
       p(moss, [elbowX - 1.0, elbowY + 1.0], [elbowX + 1.5, elbowY + 1.0],
-        [elbowX + sway * 0.25 + 0.9, elbowY + 4.6], [elbowX + sway * 0.25 - 0.7, elbowY + 4.2]);
+        [elbowX + sway * 0.25 + 0.9, elbowY + 5.2], [elbowX + sway * 0.25 - 0.7, elbowY + 4.8]);
       if (casting) {
-        chip(p, handX + s * 1.6 - 1.0, handY - 3.2, 2.2, 2.2, eyeCore);
-        chip(p, handX + s * 2.6 - 0.8, handY - 0.8, 1.8, 1.8, bud);
+        chip(p, handX + s * 1.6 - 1.0, handY - 3.4, 2.4, 2.4, eyeCore);
+        chip(p, handX + s * 2.8 - 0.8, handY - 0.8, 1.9, 1.9, bud);
       }
     }
   };
 
-  // Multi-clustered organic tree canopy (3 distinct asymmetrical leafy boughs + moss wisps)
+  // Tall, layered marsh-cypress canopy + exposed deadwood horns + weeping bog-moss curtains
   const drawTreeCrown = (q: Shape, isSide: boolean, isRear: boolean) => {
-    // Back/side leafy clusters framing the gnarled crown-branches
-    tuft(q, isSide ? -10.5 : -11.5, -30.0, 8.2, 6.4);
-    tuft(q, isSide ? 9.5 : 11.5, -30.5, 8.0, 6.2);
-    // Central tall cypress crest tuft
-    tuft(q, isSide ? -0.5 : 0, -34.5, 9.2, 6.8);
-    // Small shoulder leaf-tuft breaking the silhouette further
-    tuft(q, isSide ? -13.5 : -14.5, -25.0, 5.0, 4.0);
-    if (!isSide) tuft(q, 14.5, -25.0, 5.0, 4.0);
+    // Exposed gnarled crown branches breaking upward through the foliage
+    drawAntler(q, isSide ? -5.5 : -6.5, -34.0, -1, 10.5);
+    drawAntler(q, isSide ? 4.5 : 6.5, -34.5, 1, 9.5);
 
-    // Delicate swaying curtains of pale hanging bog-moss under the outer boughs
+    // Asymmetrical layered foliage boughs (tall organic crown, never a flat pancake!)
+    tuft(q, isSide ? -9.5 : -10.5, -32.0, 7.6, 6.8);
+    tuft(q, isSide ? 8.5 : 10.5, -32.5, 7.4, 6.6);
+    tuft(q, isSide ? -0.5 : 0, -37.5, 8.8, 7.4);
+    tuft(q, isSide ? -12.5 : -13.5, -26.5, 4.6, 4.2);
+    if (!isSide) tuft(q, 13.5, -26.5, 4.6, 4.2);
+
+    // Swaying curtains of pale hanging bog-moss
     const drapes = isSide
-      ? [[-15.5, -23.0, 6.0], [12.5, -24.0, 6.0]]
+      ? [[-14.2, -24.0, 7.8], [11.5, -25.0, 7.2]]
       : isRear
-        ? [[-15.5, -23.0, 6.5], [15.5, -23.0, 6.5]]
-        : [[-15.5, -23.0, 6.5], [15.5, -23.0, 6.5]];
+        ? [[-14.2, -24.0, 8.0], [14.2, -24.0, 8.0]]
+        : [[-14.2, -24.0, 8.0], [14.2, -24.0, 8.0]];
     for (const [mx, my, len] of drapes) {
       q(ink, [mx - 1.4, my], [mx + 1.4, my], [mx + sway * 0.55 + 1.0, my + len], [mx + sway * 0.55 - 1.0, my + len]);
       q(moss, [mx - 0.8, my + 0.4], [mx + 0.8, my + 0.4],
         [mx + sway * 0.55 + 0.5, my + len - 0.7], [mx + sway * 0.55 - 0.5, my + len - 0.7]);
-      chip(q, mx + sway * 0.22 - 0.35, my + 1.2, 0.8, len * 0.45, mossLight);
+      chip(q, mx + sway * 0.22 - 0.35, my + 1.4, 0.85, len * 0.46, mossLight);
     }
 
     // Glowing marsh-wisp buds tucked among the leafy boughs
-    for (const [bx, by] of [[-10.5, -30.5], [10.2, -30.5]]) {
-      chip(q, bx - 1.0, by - 0.5, 2.2, 2.0, bud);
-      if (casting) chip(q, bx - 0.5, by, 1.2, 1.1, eyeCore);
+    for (const [bx, by] of [[-9.5, -32.5], [9.2, -32.5]]) {
+      chip(q, bx - 1.0, by - 0.6, 2.2, 2.2, bud);
+      if (casting) chip(q, bx - 0.5, by, 1.2, 1.2, eyeCore);
     }
   };
 
-  // Muted bog-vines wrapped around the trunk with a few hanging tendrils.
+  // Muted bog-vines wrapped around the trunk with hanging tendrils
   const drawVines = (q: Shape, isSide: boolean, isRear: boolean) => {
     const vineDeep = "#33452f";
     const vineMid = "#5a7046";
     const vineLight = "#819463";
     const wrap: [number, number][] = isSide
-      ? [[-8.6, -13.2], [-3, -14.6], [3, -13.8], [9.8, -11.4], [9.4, -9.6], [3.4, -11.6], [-3, -12.6], [-8.2, -11.8]]
-      : [[-9.2, -13.6], [-3, -15.2], [3.4, -14.2], [9.2, -11.4], [8.8, -9.4], [3.6, -11.8], [-3, -12.8], [-8.8, -12.0]];
+      ? [[-8.2, -14.2], [-2.8, -15.6], [2.8, -14.8], [9.0, -12.4], [8.6, -10.4], [3.2, -12.6], [-2.8, -13.6], [-7.8, -12.8]]
+      : [[-8.8, -14.6], [-2.8, -16.2], [3.2, -15.2], [8.8, -12.4], [8.4, -10.4], [3.4, -12.8], [-2.8, -13.8], [-8.4, -13.0]];
     const inset: [number, number][] = isSide
-      ? [[-8.1, -12.9], [-3, -13.9], [3, -13.1], [9.1, -11.2], [8.8, -10.4], [3.3, -12.3], [-3, -13.2], [-7.8, -12.5]]
-      : [[-8.6, -13.3], [-3, -14.4], [3.3, -13.5], [8.4, -11.2], [8.2, -10.2], [3.5, -12.4], [-3, -13.4], [-8.2, -12.7]];
+      ? [[-7.7, -13.9], [-2.8, -14.9], [2.8, -14.1], [8.3, -12.2], [8.0, -11.2], [3.1, -13.3], [-2.8, -14.2], [-7.4, -13.5]]
+      : [[-8.2, -14.3], [-2.8, -15.4], [3.1, -14.5], [8.0, -12.2], [7.8, -11.2], [3.3, -13.4], [-2.8, -14.4], [-7.8, -13.7]];
     q(ink, ...wrap);
     q(vineMid, ...inset);
-    chip(q, -5.2, -14.1, 2.6, 0.9, vineLight);
-    chip(q, 2.4, -13.6, 2.4, 0.8, vineLight);
+    chip(q, -5.0, -15.1, 2.6, 0.9, vineLight);
+    chip(q, 2.2, -14.6, 2.4, 0.8, vineLight);
 
     const hang = (hx: number, top: number, bottom: number, curl: number) => {
       const tipX = hx + sway * 0.45;
-      q(ink, [hx - 1.5, top], [hx + 1.5, top], [tipX + curl + 1.3, bottom - 2.6],
-        [tipX + curl + 2.6, bottom + 1.0], [tipX + curl - 0.3, bottom - 0.2],
-        [tipX - 1.3, bottom - 3.2]);
-      q(vineDeep, [hx - 0.8, top + 0.4], [hx + 0.8, top + 0.4], [tipX + curl + 1.0, bottom - 2.9],
-        [tipX + curl + 1.9, bottom + 0.2], [tipX + curl - 0.2, bottom - 0.8],
+      q(ink, [hx - 1.4, top], [hx + 1.4, top], [tipX + curl + 1.2, bottom - 2.6],
+        [tipX + curl + 2.4, bottom + 1.0], [tipX + curl - 0.3, bottom - 0.2],
+        [tipX - 1.2, bottom - 3.2]);
+      q(vineDeep, [hx - 0.7, top + 0.4], [hx + 0.7, top + 0.4], [tipX + curl + 0.9, bottom - 2.9],
+        [tipX + curl + 1.8, bottom + 0.2], [tipX + curl - 0.2, bottom - 0.8],
         [tipX - 0.6, bottom - 3.4]);
-      q(vineLight, [hx - 0.4, top + 1], [hx + 0.2, top + 1], [tipX + curl + 0.4, bottom - 3.6],
+      q(vineLight, [hx - 0.35, top + 1], [hx + 0.2, top + 1], [tipX + curl + 0.4, bottom - 3.6],
         [tipX + curl - 0.2, bottom - 2.6]);
-      chip(q, hx - 2.6, top + 3.2, 2.0, 1.1, vineMid);
-      chip(q, tipX + curl + 0.2, bottom - 5.0, 1.8, 1.0, vineMid);
+      chip(q, hx - 2.4, top + 3.4, 1.9, 1.1, vineMid);
+      chip(q, tipX + curl + 0.2, bottom - 5.2, 1.8, 1.0, vineMid);
     };
 
     if (isRear) {
-      hang(0.8, -24.5, -12.0, 1.4);
-      hang(-7.6, -21.0, -14.0, -1.0);
+      hang(0.8, -26.0, -12.5, 1.4);
+      hang(-7.2, -22.5, -14.5, -1.0);
     } else if (isSide) {
-      hang(-7.4, -23.0, -13.2, -0.8);
-      hang(10.0, -18.5, -13.0, 1.0);
+      hang(-7.0, -24.5, -14.0, -0.8);
+      hang(9.2, -20.0, -13.5, 1.0);
     } else {
-      hang(-8.0, -23.5, -13.0, -0.9);
-      hang(7.8, -21.0, -14.2, 1.0);
+      hang(-7.6, -25.0, -13.8, -0.9);
+      hang(7.4, -22.5, -14.8, 1.0);
     }
   };
 
   const b = at(p, 0, bob);
 
   if (side) {
-    // Far root-leg & far branch-arm behind the leaning trunk
-    drawRootLeg(-3.5, 1, true);
-    drawBranchArm(5.5, -17.5 + bob, 1, true, true);
+    drawRootLeg(-3.2, 1, true);
+    drawBranchArm(5.2, -19.0 + bob, 1, true, true);
 
-    // Gnarled, forward-leaning treant trunk with knotted bark hip & carved hollow face
+    // Tall, stately gnarled treant trunk (1:1 natural height)
     b(ink,
-      [-8.5, -9.5], [-10.5, -17.5], [-8.5, -27.5], [6.5, -28.5], [10.8, -22], [10.2, -14], [7.8, -8.5], [-5.5, -8]);
+      [-8.0, -10.5], [-9.8, -19.0], [-8.0, -29.8], [6.2, -30.8], [10.0, -23.5], [9.4, -15.0], [7.2, -9.5], [-5.2, -9.0]);
     b(barkDeep,
-      [-7.2, -10], [-9, -17.5], [-7.2, -26.2], [5.4, -27], [9.2, -21.5], [8.8, -14.2], [6.4, -9.5], [-4.8, -9]);
+      [-6.8, -11.0], [-8.4, -19.0], [-6.8, -28.4], [5.2, -29.2], [8.6, -23.0], [8.1, -15.2], [6.0, -10.5], [-4.5, -10.0]);
     b(barkMid,
-      [-5.6, -10.8], [-7.2, -17.5], [-5.4, -25.6], [4.6, -26.2], [8.2, -21], [7.6, -14.8], [5.2, -10.2]);
-    // Sculpted vertical bark ridges
-    b(barkLight, [-4.5, -24.5], [-1.8, -25], [-0.4, -12.5], [-3.0, -12]);
-    b(barkLight, [2.0, -25], [4.6, -24.5], [5.2, -14], [2.8, -13.5]);
-    // Knotted moss-vine belt around waist
-    b(leafDark, [-8.2, -13.5], [8.4, -11.5], [8.0, -9.6], [-7.8, -11.6]);
-    b(moss, [-5.8, -12.8], [5.4, -11.2], [5.0, -10.1], [-5.4, -11.7]);
+      [-5.2, -11.8], [-6.8, -19.0], [-5.0, -27.8], [4.4, -28.4], [7.6, -22.5], [7.0, -15.8], [4.8, -11.2]);
+    b(barkLight, [-4.2, -26.5], [-1.6, -27.0], [-0.4, -13.5], [-2.8, -13.0]);
+    b(barkLight, [1.8, -27.0], [4.2, -26.5], [4.8, -15.0], [2.6, -14.5]);
+    b(leafDark, [-7.8, -14.5], [7.8, -12.5], [7.4, -10.6], [-7.4, -12.6]);
+    b(moss, [-5.4, -13.8], [5.0, -12.2], [4.6, -11.1], [-5.0, -12.7]);
 
-    // Profile carved bark-hollow face + glowing marsh-amber eye (100% unobstructed!)
-    b(ink, [3.0, -24.0], [9.6, -23.0], [9.8, -17.8], [6.0, -16.4], [2.4, -19.0]);
-    chip(b, 5.2, -21.8, 3.2, 2.2, eyeGlow);
-    chip(b, 6.2, -21.3, 1.5, 1.3, eyeCore);
-    // Protruding knotted bark brow + mossy chin beard
-    b(barkLight, [2.2, -25.0], [9.6, -24.2], [9.0, -22.6], [2.6, -23.0]);
-    b(moss, [6.2, -16.6], [9.0, -16.4], [8.6 + sway * 0.25, -12.5], [6.4 + sway * 0.25, -13.0]);
+    // Carved bark-hollow profile face + glowing marsh-amber eye
+    b(ink, [2.8, -26.2], [9.0, -25.2], [9.2, -19.6], [5.6, -18.0], [2.2, -20.8]);
+    chip(b, 4.8, -23.8, 3.2, 2.4, eyeGlow);
+    chip(b, 5.8, -23.3, 1.5, 1.4, eyeCore);
+    b(barkLight, [2.0, -27.2], [9.0, -26.4], [8.4, -24.6], [2.4, -25.0]);
+    b(moss, [5.8, -18.2], [8.4, -18.0], [8.0 + sway * 0.25, -13.6], [6.0 + sway * 0.25, -14.2]);
 
-    // Near root-leg securely planted in front of lower trunk
-    drawRootLeg(3.2, -1, false);
-
+    drawRootLeg(3.0, -1, false);
     drawVines(b, true, false);
-
-    // Multi-clustered weeping willow tree crown
     drawTreeCrown(b, true, false);
-
-    // Near branch-arm attached at lower-rear shoulder so it swings cleanly BELOW the face & raises outward when casting
-    drawBranchArm(-3.8, -15.2 + bob, casting ? -1 : 1, false, true);
+    drawBranchArm(-3.5, -16.8 + bob, casting ? -1 : 1, false, true);
     return;
   }
 
   // Front (`south`) and Rear (`north`) views
-  drawRootLeg(-5.6, 1, rear);
-  drawRootLeg(5.6, -1, !rear);
+  drawRootLeg(-5.2, 1, rear);
+  drawRootLeg(5.2, -1, !rear);
 
-  // Symmetrical gnarled branch-arms reaching out from the bark shoulders
-  drawBranchArm(-8.2, -17.5 + bob, -1, false, false);
-  drawBranchArm(8.2, -17.5 + bob, 1, false, false);
+  drawBranchArm(-7.6, -19.2 + bob, -1, false, false);
+  drawBranchArm(7.6, -19.2 + bob, 1, false, false);
 
-  // Tapered gnarled tree trunk
+  // Tall tapered gnarled trunk
   b(ink,
-    [-9.2, -9.5], [-10.8, -17.5], [-10.6, -27], [10.6, -27], [10.8, -17.5], [9.2, -9.5], [5.8, -7.8], [-5.8, -7.8]);
+    [-8.6, -10.5], [-10.0, -19.0], [-9.8, -29.5], [9.8, -29.5], [10.0, -19.0], [8.6, -10.5], [5.4, -8.8], [-5.4, -8.8]);
   b(barkDeep,
-    [-7.8, -10.2], [-9.2, -17.5], [-9.0, -25.8], [9.0, -25.8], [9.2, -17.5], [7.8, -10.2], [4.8, -9.0], [-4.8, -9.0]);
+    [-7.3, -11.2], [-8.6, -19.0], [-8.4, -28.2], [8.4, -28.2], [8.6, -19.0], [7.3, -11.2], [4.5, -10.0], [-4.5, -10.0]);
   b(barkMid,
-    [-6.4, -10.8], [-7.8, -17.5], [-7.4, -25.2], [7.4, -25.2], [7.8, -17.5], [6.4, -10.8], [3.6, -9.6], [-3.6, -9.6]);
-  // Vertical bark grain ridges
-  b(barkLight, [-6.0, -24.2], [-3.6, -24.5], [-3.2, -11.5], [-5.2, -11.5]);
-  b(barkLight, [3.6, -24.5], [6.0, -24.2], [5.2, -11.5], [3.2, -11.5]);
-  // Diagonal vine wrap around waist
-  b(leafDark, [-8.8, -13.2], [8.8, -11.2], [8.4, -9.5], [-8.4, -11.5]);
-  b(moss, [-6.8, -12.6], [6.4, -10.9], [6.0, -9.9], [-6.4, -11.6]);
+    [-6.0, -11.8], [-7.2, -19.0], [-7.0, -27.5], [7.0, -27.5], [7.2, -19.0], [6.0, -11.8], [3.4, -10.6], [-3.4, -10.6]);
+  b(barkLight, [-5.6, -26.4], [-3.4, -26.8], [-3.0, -12.5], [-4.8, -12.5]);
+  b(barkLight, [3.4, -26.8], [5.6, -26.4], [4.8, -12.5], [3.0, -12.5]);
+  b(leafDark, [-8.2, -14.2], [8.2, -12.2], [7.8, -10.5], [-7.8, -12.5]);
+  b(moss, [-6.4, -13.6], [6.0, -11.9], [5.6, -10.9], [-6.0, -12.6]);
 
   if (!rear) {
-    // Carved dark hollow treant face with glowing twin lantern eyes & mossy wooden beard
-    b(ink, [-6.6, -23.2], [6.6, -23.2], [6.0, -17.2], [2.4, -15.2], [-2.4, -15.2], [-6.0, -17.2]);
-    // Furrowed gnarled brow overhang
-    b(barkLight, [-7.2, -24.4], [0, -23.0], [7.2, -24.4], [6.4, -22.4], [0, -21.4], [-6.4, -22.4]);
-    // Twin marsh-amber eyes
+    b(ink, [-6.2, -25.4], [6.2, -25.4], [5.6, -19.0], [2.2, -16.8], [-2.2, -16.8], [-5.6, -19.0]);
+    b(barkLight, [-6.8, -26.6], [0, -25.2], [6.8, -26.6], [6.0, -24.6], [0, -23.6], [-6.0, -24.6]);
     for (const s of [-1, 1]) {
-      chip(b, s * 3.1 - 1.5, -21.0, 3.0, 2.2, eyeGlow);
-      chip(b, s * 3.1 - 0.7, -20.6, 1.4, 1.3, eyeCore);
+      chip(b, s * 2.9 - 1.5, -23.0, 3.0, 2.4, eyeGlow);
+      chip(b, s * 2.9 - 0.7, -22.5, 1.4, 1.4, eyeCore);
     }
-    // Mossy root-beard hanging below the carved chin
-    b(moss, [-2.6, -15.4], [2.6, -15.4], [2.0 + sway * 0.25, -11.6], [0 + sway * 0.25, -10.6], [-2.0 + sway * 0.25, -11.6]);
-    if (casting) chip(b, -1.6, -17.8, 3.2, 1.5, bud);
+    b(moss, [-2.4, -17.0], [2.4, -17.0], [1.9 + sway * 0.25, -12.6], [0 + sway * 0.25, -11.4], [-1.9 + sway * 0.25, -12.6]);
+    if (casting) chip(b, -1.6, -19.6, 3.2, 1.6, bud);
   } else {
-    // Rear gnarled trunk spine knot & vertical moss patch
-    b(barkDeep, [-2.4, -24.8], [2.4, -24.8], [3.0, -13], [-3.0, -13]);
-    b(moss, [-6.4, -21.5], [-1.5, -23], [-2.4, -14], [-6.6, -15]);
-    b(mossLight, [-5.2, -21], [-2.6, -22], [-3.2, -16], [-5.2, -16.5]);
+    b(barkDeep, [-2.2, -27.0], [2.2, -27.0], [2.8, -14.0], [-2.8, -14.0]);
+    b(moss, [-6.0, -23.5], [-1.4, -25.0], [-2.2, -15.0], [-6.2, -16.0]);
+    b(mossLight, [-4.8, -23.0], [-2.4, -24.0], [-3.0, -17.0], [-4.8, -17.5]);
   }
 
   drawVines(b, false, rear);
-
-  // Asymmetrical multi-clustered leafy canopy
   drawTreeCrown(b, false, rear);
 }
 

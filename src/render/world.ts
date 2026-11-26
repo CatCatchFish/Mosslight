@@ -189,7 +189,7 @@ function worldPool(ctx: CanvasRenderingContext2D, river: readonly Point[]) {
     }
   }
 }
-function trailPoint(index: number, t: number) {
+export function trailPoint(index: number, t: number) {
   const [x, y] = WAYPOINTS[index - 1],
     [nx, ny] = WAYPOINTS[index];
   if (index === 3 || index === 4) {

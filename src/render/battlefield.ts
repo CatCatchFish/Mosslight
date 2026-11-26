@@ -64,6 +64,8 @@ function drawRange(
   ctx.stroke();
   ctx.setLineDash([]);
 }
+const canvasCleanup = new WeakMap<HTMLCanvasElement, () => void>();
+
 export function createBattleRenderer(
   canvas: HTMLCanvasElement,
   game: DefenseGame,
@@ -88,8 +90,17 @@ export function createBattleRenderer(
   const enemyVisible = (enemy: Enemy) => !enemy.escaped && !isInTunnel(enemy);
   const drawFootprints = createFootprints(isWater);
   const lastImpact = new WeakMap<Enemy, Enemy["projectileImpact"]>();
+  canvasCleanup.get(canvas)?.();
   const ctx = canvas2d(canvas);
   let terrain: ReturnType<typeof buildTerrain> | undefined;
+  const onContextLost = (event: Event) => event.preventDefault();
+  const onContextRestored = () => { terrain = undefined; };
+  canvas.addEventListener("contextlost", onContextLost);
+  canvas.addEventListener("contextrestored", onContextRestored);
+  canvasCleanup.set(canvas, () => {
+    canvas.removeEventListener("contextlost", onContextLost);
+    canvas.removeEventListener("contextrestored", onContextRestored);
+  });
 
   function draw(view: BattleView, {
     selected,
@@ -120,6 +131,8 @@ export function createBattleRenderer(
     if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
     if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
     const pixelsX = pixelWidth / view.width, pixelsY = pixelHeight / view.height;
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
     ctx.setTransform(scaleX * pixelsX, 0, 0, scaleY * pixelsY,
       view.board.x * pixelsX, view.board.y * pixelsY);
     ctx.imageSmoothingEnabled = false;
@@ -286,9 +299,10 @@ export function createBattleRenderer(
     }
     units.sort((a, b) => a.y - b.y);
     let flashes = 0, guardEffects = 0;
+    const frozenView = still || game.paused;
     for (const unit of units) {
       if ("guard" in unit) {
-        drawGuard(ctx, unit.guard, game.time, unit.post, still, level.biome, guardEffects++ < 24);
+        drawGuard(ctx, unit.guard, game.time, unit.post, frozenView, level.biome, guardEffects++ < 24);
         if (unit.guard.switchDuty) {
           const x = unit.guard.x * CELL + 8, y = unit.guard.y * CELL - 3;
           box(ctx, x - 2, y, 4, 2, "#ffe6a0");
@@ -296,7 +310,7 @@ export function createBattleRenderer(
         }
         continue;
       } else if ("post" in unit) {
-        drawGuardPost(ctx, unit.post, game.time, level.towerStyle, still);
+        drawGuardPost(ctx, unit.post, game.time, level.towerStyle, frozenView);
         continue;
       } else if ("hp" in unit) {
         const hit = unit.projectileImpact;
@@ -324,8 +338,8 @@ export function createBattleRenderer(
           reducedMotion: still,
           focus: tower.focus?.since !== undefined && stats.focus
             ? Math.min(1, (game.time - tower.focus.since) / stats.focus.seconds) : 0,
-          built: tower.builtAt === undefined ? Infinity : game.time - tower.builtAt,
-          upgraded: tower.upgradedAt === undefined ? Infinity : game.time - tower.upgradedAt,
+          built: game.paused || tower.builtAt === undefined ? Infinity : game.time - tower.builtAt,
+          upgraded: game.paused || tower.upgradedAt === undefined ? Infinity : game.time - tower.upgradedAt,
           previous: tower.previous,
         },
       );

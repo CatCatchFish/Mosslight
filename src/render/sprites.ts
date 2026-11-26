@@ -43,7 +43,7 @@ import { canvas2d } from "./canvas.ts";
 import { highQuality } from "./quality.ts";
 import { box } from "./terrain.ts";
 import { pixelEllipse, shadeSprite } from "./tower-life.ts";
-import { drawFrostStatus, drawNewEnemyAura, drawRichDefeat, tintedSilhouette } from "./unit-life.ts";
+import { drawFrostStatus, drawNewEnemyAura, drawRichDefeat, drawSporeStatus, tintedSilhouette } from "./unit-life.ts";
 import type { DefeatStyle } from "./unit-life.ts";
 
 type EnemyPainter = (rect: Rect, shape: Shape, frame: number) => void;
@@ -326,6 +326,7 @@ const healthBarOffsets: Partial<Record<EnemyId, number>> = {
   "ice-sail": 22,
   "frost-owl": 26,
   "mire-treant": 28,
+  "mire-elder": 36,
   "mire-croc": 18,
   "vine-viper": 23,
   "mire-mycelid": 27,
@@ -1194,6 +1195,8 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy, time: num
     }
   }
   ctx.restore();
+  if (enemy.spore && enemy.spore.until > enemy.age)
+    drawSporeStatus(ctx, x, y, wide, time, airborne, leap, enemy.spore.until - enemy.age);
   if (rich && showPose) drawNewEnemyAura(ctx, enemy, x, y, wide, scale, time, leap, enraged);
   if (airStrike && attack && !reducedMotion) {
     const [dx, dy] = attack.direction;

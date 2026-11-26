@@ -17,7 +17,7 @@ export function paintSnowFooting(r: Rect, p: Shape, width: number, front: number
 
 const spans: Record<TowerId, number> = {
   arrow: 16, cannon: 24, ballista: 25, frost: 21, ember: 21, storm: 17, net: 23, prism: 18,
-  "hail-mortar": 24, "glaze-lance": 19, "salt-caster": 22,
+  "hail-mortar": 24, "glaze-lance": 19, "salt-caster": 22, "spore-caster": 20,
 };
 
 export function paintFrostWatchTower(type: TowerId, r: Rect, p: Shape, specialized: boolean) {

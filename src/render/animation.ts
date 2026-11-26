@@ -172,6 +172,32 @@ export function drawProjectile(
     }
     return;
   }
+  if (shot.kind === "spore-caster") {
+    const podX = x + (1 - t) * 4;
+    const podY = y - (1 - t) * 4 - Math.sin(t * Math.PI) * (reducedMotion ? 9 : 17);
+    if (!reducedMotion && t > .12) {
+      for (let i = 1; i <= 3; i++) {
+        const trail = t - i * .065;
+        if (trail < 0) continue;
+        const tx = fromX + dx * trail + (1 - trail) * 4;
+        const ty = fromY + dy * trail - (1 - trail) * 4 - Math.sin(trail * Math.PI) * 17;
+        b(tx - .7, ty - .7, 1.4, 1.4, i === 1 ? "#b7d878aa" : "#7b9d5a66");
+      }
+    }
+    ctx.save();
+    ctx.translate(podX, podY);
+    if (!reducedMotion) ctx.rotate((t - .3) * 2.2 * Math.sign(dx || 1));
+    const size = shot.path === "burst-spores" ? 1.2 : shot.path === "parasitic-spores" ? .92 : 1;
+    ctx.scale(size, size);
+    b(-3.4, -2.4, 6.8, 5.6, "#2e3d2e");
+    b(-2.6, -1.2, 5.2, 3.8, "#698650");
+    b(-2.8, -3.1, 5.6, 2.2, "#a9c878");
+    b(-1.6, -1.2, 1.5, 1.5, "#e0eda0");
+    b(1.2, -2.1, 1.2, 1.2, "#d4e58e");
+    b(-3.5, -2.8, 7, 1, "#574d35");
+    ctx.restore();
+    return;
+  }
   if (shot.kind === "salt-caster") {
     const potX = x + (1 - t) * 6;
     const potY = y - (1 - t) * 3 - Math.sin(t * Math.PI) * (reducedMotion ? 8 : 15);
@@ -387,6 +413,42 @@ export function drawGroundEffect(ctx: CanvasRenderingContext2D, effect: Effect, 
     ctx.globalAlpha *= 1 - t;
     pixelOval(ctx, px, py + 2, reach, reach * .47, 19, kind === "salt-caster" ? "#f9e9bf" : color, 1.35);
     if (kind === "salt-caster") pixelOval(ctx, px, py + 1, reach * .83, reach * .37, 11, "#fff5d7", .8);
+  } else if (kind === "mire-summon") {
+    const reach = (radius ?? .9) * CELL * (.24 + t * .76);
+    ctx.globalAlpha *= (1 - t) * .92;
+    pixelOval(ctx, px, py + 2, reach, reach * .46, 22, "#4e8a4e", 1.5);
+    pixelOval(ctx, px, py + 1.5, reach * .72, reach * .32, 16, "#b4f78b", 1.1);
+    for (let i = 0; i < (reducedMotion ? 4 : 7); i++) {
+      const a = i * (Math.PI * 2 / (reducedMotion ? 4 : 7)) + t * .6;
+      const d = reach * (.45 + (i % 2) * .25);
+      const rx = px + Math.cos(a) * d;
+      const ry = py + 1 + Math.sin(a) * d * .45;
+      const rise = (4 + (i % 3) * 3) * Math.sin(Math.min(1, t * 1.4) * Math.PI);
+      linePixels(ctx, rx, ry + 1, rx + Math.cos(a) * 2.5, ry - rise, i % 2 ? "#7d6446" : "#a8f285", 1.4, 1);
+      if (i % 2 === 0) diamond(ctx, rx, ry - rise - t * 6, 1.3, "#f7ffbf");
+    }
+  } else if (kind === "mire-bloom") {
+    const reach = (radius ?? 1) * CELL * (.24 + t * .76);
+    ctx.globalAlpha *= (1 - t) * .94;
+    for (let i = 0; i < 5; i++) {
+      const a = i * Math.PI * 2 / 5 + .2;
+      const rx = px + Math.cos(a) * reach * .68;
+      const ry = py + 1 + Math.sin(a) * reach * .35;
+      const rise = (5 + i % 2 * 3) * Math.sin(Math.min(1, t * 1.5) * Math.PI);
+      linePixels(ctx, rx, ry, rx + Math.cos(a) * 2, ry - rise, i % 2 ? "#786248" : "#c7e686", 1.5, 1);
+      diamond(ctx, rx + Math.cos(a) * 2, ry - rise - t * 4, 1.7, i % 2 ? "#b8ed83" : "#f0ffc1");
+    }
+  } else if (kind === "spore-caster" || kind === "spore-burst") {
+    const reach = (radius ?? .55) * CELL * (.18 + .82 * t);
+    ctx.globalAlpha *= 1 - t;
+    pixelOval(ctx, px, py + 2, reach, reach * .42, 17, "#587647", 1.2);
+    pixelOval(ctx, px, py + 1, reach * .72, reach * .3, 12, "#94b966", .9);
+    for (let i = 0; i < 7; i++) {
+      const a = i * 2.399;
+      const d = reach * (.35 + i % 3 * .2);
+      box(ctx, px + Math.cos(a) * d, py + 1 + Math.sin(a) * d * .45,
+        i % 2 ? 1.6 : 1, i % 2 ? 1.6 : 1, i % 3 ? "#b9d67c" : "#e1eca1");
+    }
   } else if (kind === "mire-shell-warning" && effect.direction) {
     const [dx, dy] = effect.direction;
     const angle = Math.atan2(dy, dx), reach = (radius ?? 1.6) * CELL;
@@ -522,6 +584,30 @@ export function drawEffect(ctx: CanvasRenderingContext2D, effect: Effect, reduce
   if (kind === "net-capture") {
     ctx.globalAlpha = 1 - t;
     drawNetMesh(ctx, px, hitY, 6 + t * 4, 4 + t * 2, color);
+  } else if (kind === "spore-spread" && effect.pathPoints?.[0]) {
+    const [from, to] = effect.pathPoints;
+    const fx = from[0] * CELL + 8, fy = from[1] * CELL + 5;
+    const tx = to[0] * CELL + 8, ty = to[1] * CELL + 5;
+    ctx.globalAlpha = Math.sin(t * Math.PI) * .9;
+    for (let i = 0; i <= 10; i++) {
+      const p = i / 10;
+      if (p > t * 1.25) continue;
+      const x = fx + (tx - fx) * p, y = fy + (ty - fy) * p - Math.sin(p * Math.PI) * 7;
+      box(ctx, x - .7, y - .7, i % 3 ? 1.2 : 1.8, i % 3 ? 1.2 : 1.8,
+        i % 3 ? "#8fb760" : "#d9ec95");
+    }
+    diamond(ctx, fx + (tx - fx) * t, fy + (ty - fy) * t - Math.sin(t * Math.PI) * 7, 1.4, "#edf5bb");
+  } else if (kind === "spore-caster" || kind === "spore-burst") {
+    ctx.globalAlpha = 1 - t;
+    if (t < .3) diamond(ctx, px, hitY - 2, kind === "spore-burst" ? 3 : 2, "#e1edac");
+    const reach = kind === "spore-burst" ? (radius ?? 1.35) * CELL : 9;
+    for (let i = 0; i < (reducedMotion ? 4 : 9); i++) {
+      const a = i * 2.399 + t;
+      const d = reach * (.2 + .8 * t) * (.55 + i % 3 * .18);
+      const x = px + Math.cos(a) * d, y = hitY + Math.sin(a) * d * .55 - Math.sin(t * Math.PI) * (4 + i % 3 * 3);
+      box(ctx, x, y, i % 2 ? 1.8 : 1.2, i % 2 ? 1.8 : 1.2,
+        i % 3 ? "#a9ca70" : "#e4efb0");
+    }
   } else if (kind === "guard-strike" || kind === "guard-spear" || kind === "arrow" || kind === "ballista" || kind === "net") {
     const [dx, dy] = effect.direction ?? [1, 0];
     const angle = Math.atan2(dy, dx);
@@ -891,7 +977,7 @@ export function drawEffect(ctx: CanvasRenderingContext2D, effect: Effect, reduce
     }
     pixelRing(ctx, px, py, 3 + t * (radius ? radius * CELL : 8), 13, color, 1);
     diamond(ctx, px, hitY, 2, kind === "glaze-lance" ? "#eefcff" : "#f5e3ff");
-  } else if (kind === "salt-caster" || kind === "mire-tide-break" || kind === "mire-hatch" ||
+  } else if (kind === "salt-caster" || kind === "mire-tide-break" || kind === "mire-hatch" || kind === "mire-bloom-burst" ||
       ((kind === "mire-shell" || kind === "mire-drag") && effect.direction)) {
     const [dx, dy] = effect.direction ?? [0, 0];
     const reach = (radius ?? (kind === "mire-tide-break" ? 1.6 : .8)) * CELL;
@@ -903,6 +989,7 @@ export function drawEffect(ctx: CanvasRenderingContext2D, effect: Effect, reduce
       const shardX = px + Math.cos(angle) * dist + dx * t * 4;
       const shardY = py + Math.sin(angle) * dist * .55 - 7 * Math.sin(t * Math.PI) + dy * t * 3;
       const shard = kind === "mire-tide-break" ? (i % 2 ? "#676b50" : "#ad9366")
+        : kind === "mire-bloom-burst" ? (i % 2 ? "#8fa34d" : "#e0f7a0")
         : kind === "salt-caster" ? (i % 2 ? "#bd8062" : "#fff1cf") : (i % 2 ? color : "#f2e0c5");
       box(ctx, shardX, shardY, i % 2 ? 3 : 2, 1.5, shard);
     }

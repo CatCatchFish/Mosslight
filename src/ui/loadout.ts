@@ -1,4 +1,4 @@
-import { CHAPTERS } from "../content/campaign.ts";
+import { CHAPTERS, STARTER_TOWERS, unlockedTowers } from "../content/campaign.ts";
 import {
   ALL_BUILDINGS,
   battleLoadout,
@@ -9,6 +9,8 @@ import {
 } from "../content/towers.ts";
 import { GUARD_BRANCHES, GUARD_BUILDINGS, isGuardPostId } from "../engine/guards.ts";
 import type { BuildingId, Level } from "../engine/types.ts";
+import type { GameAudio } from "../platform/audio.ts";
+import type { GameAnalytics } from "../platform/analytics.ts";
 import type { SaveStore } from "../platform/save.ts";
 import { guardPostIcon } from "../render/guards.ts";
 import { towerIcon } from "../render/tower-art.ts";
@@ -53,7 +55,7 @@ function drawBuildingIcon(canvas: HTMLCanvasElement, type: BuildingId, style?: L
   else towerIcon(canvas, type, null, style);
 }
 
-export function mountLoadout(save: SaveStore) {
+export function mountLoadout(save: SaveStore, audio: GameAudio, analytics: GameAnalytics) {
   const trigger = $("open-loadout");
   const dialog = $("loadout-dialog");
   const deck = $("loadout-deck");
@@ -68,7 +70,14 @@ export function mountLoadout(save: SaveStore) {
   let selected: BuildingId[] = [];
   let filter: LoadoutFilter = "all";
   let inspected: BuildingId = "arrow";
+  let newlyUnlocked = new Set<BuildingId>();
   const cards = new Map<BuildingId, HTMLButtonElement>();
+  const newBadge = $("loadout-new-badge");
+
+  function unseenUnlockedTowers(): BuildingId[] {
+    const seen = new Set<BuildingId>([...STARTER_TOWERS, ...save.snapshot.seenTowers]);
+    return unlockedTowers(save.snapshot.ratings).filter((id) => !seen.has(id));
+  }
 
   function availablePool(): readonly BuildingId[] {
     return level ? levelTowerOptions(level) : ALL_BUILDINGS;
@@ -91,12 +100,24 @@ export function mountLoadout(save: SaveStore) {
     } else {
       count.textContent = `${(global.length ? global : DEFAULT_GLOBAL_PRESET).length}/${LOADOUT_LIMIT}`;
     }
+    const unseen = unseenUnlockedTowers();
+    const hasNew = unseen.length > 0;
+    trigger.classList.toggle("has-new-towers", hasNew);
+    newBadge.hidden = !hasNew;
+    if (hasNew) {
+      newBadge.textContent = unseen.length > 1 ? `新 +${unseen.length}` : "新解锁";
+      const names = unseen.map((id) => buildingMeta(id).name).join("、");
+      trigger.title = `发现新解锁炮塔：${names}`;
+    } else {
+      trigger.removeAttribute("title");
+    }
   }
 
   const deckBar = deck.parentElement;
   let fullNoticeTimer: number | undefined;
 
   function nudgeFullDeck() {
+    audio.playUi("ui-denied");
     $("loadout-help").textContent = "编队已满（5/5），请先点按上方槽位或已选卡片移出 1 座。";
     if (!deckBar) return;
     deckBar.classList.remove("nudge");
@@ -152,6 +173,7 @@ export function mountLoadout(save: SaveStore) {
         slot.append(canvas, name, remove);
         slot.addEventListener("click", () => {
           selected = selected.filter((item) => item !== type);
+          audio.playUi("ui-unequip");
           updateEditor();
         });
         slot.addEventListener("mouseenter", () => renderDetail(type));
@@ -182,6 +204,7 @@ export function mountLoadout(save: SaveStore) {
       btn.setAttribute("aria-selected", String(filter === id));
       btn.textContent = label;
       btn.addEventListener("click", () => {
+        if (filter !== id) audio.playUi("ui-tab");
         filter = id;
         renderTabs();
         renderGrid();
@@ -199,9 +222,10 @@ export function mountLoadout(save: SaveStore) {
     );
     for (const type of visible) {
       const meta = buildingMeta(type);
+      const isNew = newlyUnlocked.has(type);
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "loadout-card";
+      button.className = "loadout-card" + (isNew ? " is-new" : "");
       button.style.setProperty("--tower-color", meta.color);
 
       const canvas = document.createElement("canvas");
@@ -220,6 +244,12 @@ export function mountLoadout(save: SaveStore) {
       region.style.setProperty("--region", meta.region.color);
       region.textContent = meta.region.short;
       topRow.append(name, region);
+      if (isNew) {
+        const badge = document.createElement("span");
+        badge.className = "loadout-card-new";
+        badge.textContent = "新解锁";
+        topRow.append(badge);
+      }
 
       const detailLine = document.createElement("small");
       detailLine.className = "loadout-card-meta";
@@ -232,13 +262,22 @@ export function mountLoadout(save: SaveStore) {
       button.append(canvas, label, mark);
 
       button.addEventListener("click", () => {
+        if (newlyUnlocked.has(type)) {
+          newlyUnlocked.delete(type);
+          save.markTowersSeen([type]);
+          button.classList.remove("is-new");
+          button.querySelector(".loadout-card-new")?.remove();
+          updateTrigger();
+        }
         renderDetail(type);
         const index = selected.indexOf(type);
         if (index >= 0) {
           selected.splice(index, 1);
+          audio.playUi("ui-unequip");
           updateEditor();
         } else if (selected.length < LOADOUT_LIMIT) {
           selected.push(type);
+          audio.playUi("ui-equip");
           updateEditor();
         } else {
           nudgeFullDeck();
@@ -258,14 +297,17 @@ export function mountLoadout(save: SaveStore) {
         ? `第 ${level.id} 关「${level.name}」 · 教学固定编队`
         : `第 ${level.id} 关「${level.name}」 · 本关开放 ${pool.length} 座炮塔`
       : `全局出战编队 · 已展示全部 ${ALL_BUILDINGS.length} 座炮塔`;
+    const newInPool = pool.filter((type) => newlyUnlocked.has(type));
     $("loadout-count").textContent = `已编入 ${count} / ${LOADOUT_LIMIT}`;
     $("loadout-help").textContent = count === 0
       ? "请至少编入 1 座炮塔。"
-      : level?.tutorial
-        ? "第 01 关使用固定教学编队，此处修改将用于后续关卡。"
-        : count === LOADOUT_LIMIT
-          ? "编队已满，点按上方槽位或已选卡片移出后再替换。"
-          : "点按下方炮塔卡片即可编入或移出。";
+      : newInPool.length > 0
+        ? `新解锁：${newInPool.map((id) => buildingMeta(id).name).join("、")}，点按卡片即可编入队列。`
+        : level?.tutorial
+          ? "第 01 关使用固定教学编队，此处修改将用于后续关卡。"
+          : count === LOADOUT_LIMIT
+            ? "编队已满，点按上方槽位或已选卡片移出后再替换。"
+            : "点按下方炮塔卡片即可编入或移出。";
     apply.disabled = count === 0;
     clearButton.disabled = count === 0;
 
@@ -287,6 +329,7 @@ export function mountLoadout(save: SaveStore) {
 
   clearButton.addEventListener("click", () => {
     selected = [];
+    audio.playUi("ui-clear");
     updateEditor();
   });
 
@@ -294,24 +337,32 @@ export function mountLoadout(save: SaveStore) {
     selected = level
       ? levelTowerOptions(level).slice(0, LOADOUT_LIMIT)
       : [...DEFAULT_GLOBAL_PRESET];
+    audio.playUi("ui-preset");
     updateEditor();
   });
 
   trigger.addEventListener("click", () => {
+    audio.playUi("ui-open");
+    newlyUnlocked = new Set(unseenUnlockedTowers());
     selected = level
       ? battleLoadout(level, activeGlobalLoadout())
       : [...activeGlobalLoadout()].slice(0, LOADOUT_LIMIT);
     filter = "all";
     renderTabs();
     renderGrid();
-    renderDetail(selected[0] ?? availablePool()[0] ?? "arrow");
+    const firstNew = availablePool().find((id) => newlyUnlocked.has(id));
+    renderDetail(firstNew ?? selected[0] ?? availablePool()[0] ?? "arrow");
     updateEditor();
     dialog.showModal();
   });
 
   apply.addEventListener("click", () => {
     if (!selected.length) return;
+    audio.playUi("ui-confirm");
     save.setGlobalLoadout(selected);
+    analytics.logEvent("loadout_save", {
+      stage_id: level?.id ?? "global", tower_count: selected.length,
+    });
     updateTrigger();
     dialog.close();
   });

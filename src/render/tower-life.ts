@@ -153,7 +153,7 @@ export function buildPose(age: number): Squash {
   const fall = .17;
   if (age < fall) {
     const t = age / fall;
-    return { sx: .9, sy: 1.12, lift: (1 - t * t) * 12, alpha: clamp01(t * 2.2) };
+    return { sx: .9, sy: 1.12, lift: (1 - t * t) * 12, alpha: 0.35 + 0.65 * clamp01(t * 2.2) };
   }
   const wobble = spring(age - fall, 27, 8.5);
   return { sx: 1 + wobble * .2, sy: 1 - wobble * .26, lift: 0, alpha: 1 };
@@ -175,13 +175,14 @@ export function upgradePose(age: number): Squash {
 export function firePose(type: TowerId, path: string | null, charge: number, age: number): Squash {
   const heavy = type === "cannon" ? (path === "blast" ? .13 : .1)
     : type === "hail-mortar" ? (path === "avalanche" ? .16 : .12)
+    : type === "spore-caster" ? (path === "burst-spores" ? .12 : path === "parasitic-spores" ? .085 : .07)
     : type === "ballista" || type === "glaze-lance" ? .075 : type === "storm" || type === "ember" ? .06 : .045;
   if (charge > 0) {
     const c = charge * charge;
     return { sx: 1 + c * heavy * .45, sy: 1 - c * heavy * .6, lift: 0, alpha: 1 };
   }
   if (age > .5) return { sx: 1, sy: 1, lift: 0, alpha: 1 };
-  const kick = spring(age, 34, 10);
+  const kick = spring(age, type === "spore-caster" && path === "burst-spores" ? 39 : 34, 10);
   return { sx: 1 - kick * heavy * .5, sy: 1 + kick * heavy * .7, lift: 0, alpha: 1 };
 }
 

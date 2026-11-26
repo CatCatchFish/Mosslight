@@ -272,6 +272,29 @@ export function drawFrostStatus(
   ctx.restore();
 }
 
+export function drawSporeStatus(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, wide: number, time: number, airborne: boolean, leap: number, remaining: number,
+) {
+  const baseY = y - leap - wide * .25;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, remaining * 2.5) * .92;
+  for (let i = 0; i < 3; i++) {
+    const sx = x + (i - 1) * wide * .48;
+    const sy = baseY - (i === 1 ? wide * .28 : 0) + Math.sin(time * 3 + i) * .3;
+    pixelEllipse(ctx, sx, sy, 1.7 + (i === 1 ? .5 : 0), 1.25, "#385337");
+    pixelEllipse(ctx, sx - .35, sy - .35, 1.1, .75, "#82a85b");
+    box(ctx, sx - .8, sy - 1, 1.1, .75, "#c4dc86");
+  }
+  for (let i = 0; i < 3; i++) {
+    const t = (time * .65 + i * .33 + x * .01) % 1;
+    ctx.globalAlpha = Math.sin(t * Math.PI) * .7 * Math.min(1, remaining * 2.5);
+    box(ctx, x + Math.sin(time * 2 + i * 2.1) * wide * .8,
+      baseY - t * (wide + 5), 1, 1, i === 1 ? "#e0ecab" : "#9dbe6c");
+  }
+  ctx.restore();
+}
+
 export type DefeatStyle = "frost-shatter" | "armor-shatter" | "dissolve";
 
 /**
@@ -880,6 +903,63 @@ export function drawNewEnemyAura(
           box(ctx, x + Math.sin(time * 2.1 + i * 2.7 + seed) * (wide * .8), y - 19 * scale - t * 8,
             1.1, 1.1, i === 0 ? "#c9f584" : "#f7db7c");
         }
+      }
+      ctx.restore();
+      return;
+    }
+
+    case "mire-elder": {
+      ctx.save();
+      if (enemy.mireCast) {
+        // Rising emerald-gold summoning spores & root motes around the elder's feet and crown
+        for (let i = 0; i < 7; i++) {
+          const t = (time * 1.85 + i * .14 + seed) % 1;
+          const a = time * 2.5 + i * .9 + seed;
+          const r = wide * (.48 + t * .85);
+          const py = y - 2 - t * (26 * scale);
+          ctx.globalAlpha = (1 - t) * .9;
+          if (i % 2 === 0) diamond(ctx, x + Math.cos(a) * r, py, 1.3, "#f6ffc2");
+          else box(ctx, x + Math.cos(a) * r, py, 1.5, 1.5, i % 3 === 0 ? "#ffd975" : "#9cf284");
+        }
+      } else {
+        // Gentle warm lantern sparks & canopy pollen drifting upward
+        for (let i = 0; i < 3; i++) {
+          const t = (time * .65 + i * .33 + seed) % 1;
+          ctx.globalAlpha = Math.sin(t * Math.PI) * .68;
+          const px = x + Math.sin(time * 1.9 + i * 2.1 + seed) * (wide * .75);
+          const py = y - 16 * scale - t * 12;
+          if (i === 0) diamond(ctx, px, py, 1.1, "#ffe89e");
+          else box(ctx, px, py, 1.2, 1.2, i === 1 ? "#b6f283" : "#f5c96b");
+        }
+      }
+      ctx.restore();
+      return;
+    }
+
+    case "mire-matriarch": {
+      ctx.save();
+      const count = action ? 9 : 4;
+      for (let i = 0; i < count; i++) {
+        const t = (time * (action ? 1.9 : .62) + i * .13 + seed) % 1;
+        const drift = Math.sin(time * (action ? 2.8 : 1.5) + i * 1.7 + seed);
+        const px = x + drift * wide * (action ? .7 + t * .6 : .72);
+        const py = y - 5 - t * (action ? 45 : 30) * scale;
+        ctx.globalAlpha = Math.sin(t * Math.PI) * (action ? .88 : .56);
+        if (i % 3 === 0) diamond(ctx, px, py, action ? 1.35 : .95, action ? "#f3ffc2" : "#d6e69a");
+        else box(ctx, px, py, 1.15, 1.15, action ? "#d3ed87" : "#aebf7c");
+      }
+      ctx.restore();
+      return;
+    }
+
+    case "spore-pod": {
+      ctx.save();
+      for (let i = 0; i < 3; i++) {
+        const t = (time * .7 + i * .33 + seed) % 1;
+        const a = time * 1.3 + i * 2.1 + seed;
+        ctx.globalAlpha = Math.sin(t * Math.PI) * .7;
+        diamond(ctx, x + Math.cos(a) * wide * .8, y - 9 * scale - t * 12 * scale,
+          1 + (i === 0 ? .4 : 0), i === 0 ? "#f2ffbf" : "#c6df83");
       }
       ctx.restore();
       return;

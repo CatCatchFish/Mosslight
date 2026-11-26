@@ -40,11 +40,12 @@ export const BUILDING_REGION: Readonly<Record<BuildingId, number>> = {
   "frost-kennel": 3,
   "reed-post": 4,
   "salt-caster": 4,
+  "spore-caster": 4,
 };
 
 export const ALL_BUILDINGS: readonly BuildingId[] = [
   "arrow", "cannon", "frost", "ember", "ballista", "net", "prism", "storm",
-  "hail-mortar", "glaze-lance", "salt-caster",
+  "hail-mortar", "glaze-lance", "salt-caster", "spore-caster",
   "guard-post", "griffin-roost", "frost-kennel", "reed-post",
 ];
 
@@ -430,23 +431,47 @@ export const TOWERS: Readonly<Record<TowerId, TowerSpec>> = {
     },
   },
   "salt-caster": {
-    name: "盐釉投罐塔", role: "地面溅射 · 盐釉降低护甲减伤", sprite: "salt-caster",
+    name: "盐釉投罐塔", role: "溅射 · 盐釉降低护甲减伤", sprite: "salt-caster",
     color: "#ead6ad", flight: [.26, 10],
     tiers: [
-      { cost: 115, damage: 36, range: 3.5, interval: 1.85, splash: 1, groundOnly: true, salt: { armor: .08, duration: 2.8 } },
-      { cost: 90, damage: 50, range: 3.7, interval: 1.7, splash: 1.05, groundOnly: true, salt: { armor: .09, duration: 3 } },
-      { cost: 70, damage: 64, range: 3.9, interval: 1.55, splash: 1.1, groundOnly: true, salt: { armor: .1, duration: 3.2 } },
+      { cost: 115, damage: 36, range: 3.5, interval: 1.85, splash: 1, salt: { armor: .08, duration: 2.8 } },
+      { cost: 90, damage: 50, range: 3.7, interval: 1.7, splash: 1.05, salt: { armor: .09, duration: 3 } },
+      { cost: 70, damage: 64, range: 3.9, interval: 1.55, splash: 1.1, salt: { armor: .1, duration: 3.2 } },
     ],
     paths: {
       "thick-glaze": {
         name: "厚釉破甲", detail: "82 冲击伤害 · 护甲减伤降低 18 个百分点，持续 4 秒",
-        cost: 130, damage: 82, range: 3.9, interval: 1.45, splash: 1.2, groundOnly: true,
+        cost: 130, damage: 82, range: 3.9, interval: 1.45, splash: 1.2,
         color: "#f0dcaa", salt: { armor: .18, duration: 4 },
       },
       "salt-rain": {
-        name: "分罐盐雨", detail: "向两个不同地面目标投罐 · 每个敌人每轮最多承受一次冲击",
-        cost: 125, damage: 64, range: 3.9, interval: 1.55, splash: 1.1, groundOnly: true, split: true,
+        name: "分罐盐雨", detail: "向两个不同目标投罐 · 每个敌人每轮最多承受一次冲击",
+        cost: 125, damage: 64, range: 3.9, interval: 1.55, splash: 1.1, split: true,
         color: "#e7ac80", salt: { armor: .1, duration: 3.6 },
+      },
+    },
+  },
+  "spore-caster": {
+    name: "孢匣塔", role: "毒孢 · 倒地后向近邻传播", sprite: "spore-caster",
+    color: "#b9d879", flight: [.28, 15],
+    tiers: [
+      { cost: 120, damage: 28, range: 3.6, interval: 1.5,
+        spore: { damagePerSecond: 8, duration: 3.4, spread: 1.6, jumps: 2 } },
+      { cost: 95, damage: 39, range: 3.85, interval: 1.4,
+        spore: { damagePerSecond: 11, duration: 3.6, spread: 1.6, jumps: 2 } },
+      { cost: 75, damage: 52, range: 4.1, interval: 1.3,
+        spore: { damagePerSecond: 14, duration: 3.8, spread: 1.6, jumps: 2 } },
+    ],
+    paths: {
+      "burst-spores": {
+        name: "爆孢", detail: "倒地爆发 34 点范围伤害 · 传播缩至最近一跳",
+        cost: 130, damage: 54, range: 4.1, interval: 1.4, color: "#d7e59a",
+        spore: { damagePerSecond: 9, duration: 3.4, spread: 1.15, jumps: 1, burst: { radius: 1.35, damage: 34 } },
+      },
+      "parasitic-spores": {
+        name: "寄生", detail: "毒孢持续 5.5 秒 · 最多向近邻传播三跳",
+        cost: 135, damage: 58, range: 4.25, interval: 1.28, color: "#9fd2a0",
+        spore: { damagePerSecond: 12, duration: 5.5, spread: 1.75, jumps: 3 },
       },
     },
   },

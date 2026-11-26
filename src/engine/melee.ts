@@ -27,6 +27,7 @@ const enemyStyles: Partial<Record<EnemyId, MeleeStyle>> = {
   ram: "stomp", "stump-spirit": "stomp", "slag-cart": "stomp", "ferry-snail": "stomp",
   "moss-badger": "claw", "mirror-shrimp": "claw", "rivet-mite": "stomp", "frost-porcupine": "pounce",
   "mire-treant": "claw", "mire-croc": "bite", "vine-viper": "bite", "mire-mycelid": "stomp",
+  "mire-elder": "stomp", "mire-matriarch": "stomp", "spore-pod": "pounce",
 };
 
 export const WEIR_SURGE_RADIUS = 1.35;
@@ -68,5 +69,6 @@ export function enemyMeleeDamage(enemy: Enemy, style: MeleeStyle) {
   if (style === "surge") return 60;
   if (style === "quake") return 92;
   if (enemy.type === "frost-mammoth") return 68;
+  if (enemy.type === "mire-matriarch") return 76;
   return spec.miniboss ? 62 : spec.armored ? 22 : 12 + 2 * spec.leak;
 }

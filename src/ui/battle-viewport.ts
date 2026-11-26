@@ -193,6 +193,7 @@ export function mountBattleViewport() {
       };
     },
     toggle: toggleZoom,
+    refresh: fitBounds,
     reset: () => resetView(1),
   };
 }

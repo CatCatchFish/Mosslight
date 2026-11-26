@@ -1,4 +1,5 @@
-import { paintSaltCaster } from "./mire-expansion-art.ts";
+import { paintSaltCaster, paintSporeCaster } from "./mire-expansion-art.ts";
+import type { SporePose } from "./mire-expansion-art.ts";
 import { TOWERS } from "../content/towers.ts";
 import { headingVector } from "../engine/formation.ts";
 import type { Heading } from "../engine/formation.ts";
@@ -10,7 +11,7 @@ import { paintSprite, stamp } from "./pixel-sprite.ts";
 import type { Rect, Shape } from "./pixel-sprite.ts";
 import { drawTurret, muzzleOffset } from "./turrets.ts";
 import { paintGlazeLance, paintHailMortar } from "./regional-tower-art.ts";
-import { SPECIALIZATION_ART } from "./tower-specializations.ts";
+import { drawSporeAttack, SPECIALIZATION_ART } from "./tower-specializations.ts";
 import { highQuality } from "./quality.ts";
 import {
   BUILD_SECONDS, PENNANT_MOUNT, UPGRADE_SECONDS, UPGRADE_SWAP, buildPose, combine, drawContactShadow, drawDust,
@@ -165,14 +166,17 @@ const bodies: Record<TowerId, Painter> = {
   "hail-mortar": paintHailMortar,
   "glaze-lance": paintGlazeLance,
   "salt-caster": (r, p) => paintSaltCaster(r, p, 1),
+  "spore-caster": (r, p) => paintSporeCaster(r, p, 1),
 };
 
 const bodiesCache = new Map<string, HTMLCanvasElement>();
 const cores = new Map<string, HTMLCanvasElement>();
 
-function towerBody(type: TowerId, tier: number, path: string | null, accent: string, style?: Level["towerStyle"], lift = 0) {
+function towerBody(type: TowerId, tier: number, path: string | null, accent: string,
+  style?: Level["towerStyle"], lift = 0, sporePose?: SporePose) {
   const shaded = highQuality();
-  const key = [type, tier, path, shaded, style, lift].join("/");
+  const key = [type, tier, path, shaded, style, lift,
+    sporePose ? `${sporePose.charge}/${sporePose.release}` : ""].join("/");
   const cached = bodiesCache.get(key);
   if (cached) return cached;
   const painted = paintSprite((r, p) => {
@@ -183,14 +187,14 @@ function towerBody(type: TowerId, tier: number, path: string | null, accent: str
     const art = path && SPECIALIZATION_ART[type][path];
     if (art) {
       const span = type === "arrow" || type === "storm" ? 16 : 20;
-      const regional = type === "hail-mortar" || type === "glaze-lance";
+      const regional = type === "hail-mortar" || type === "glaze-lance" || type === "spore-caster";
       if (!regional) {
         p("#233a36", [-span - 4, 3], [-span - 2, -1], [-span + 4, -6], [span - 5, -6],
           [span + 2, -1], [span + 4, 3], [span - 1, 7], [-span, 7]);
         p("#65786b", [-span - 2, 2], [-span + 3, -4], [span - 4, -4],
           [span + 2, 2], [span - 2, 5.5], [-span + 1, 5.5]);
       }
-      art.body(r, p);
+      art.body(r, p, sporePose);
       if (style === "frost-watch") paintFrostWatchTower(type, r, p, true);
       for (const sign of [-1, 1]) {
         const x = sign * (regional ? 11 : span - 3);
@@ -199,7 +203,8 @@ function towerBody(type: TowerId, tier: number, path: string | null, accent: str
       }
       return;
     }
-    bodies[type](r, p);
+    if (type === "spore-caster") paintSporeCaster(r, p, tier, path, sporePose);
+    else bodies[type](r, p);
     if (style === "frost-watch") paintFrostWatchTower(type, r, p, false);
     if (tier < 2) return;
     r(-tier * 2 - 1, 1.25, tier * 4 + 2, 3.35, "#303a36");
@@ -262,7 +267,7 @@ interface TowerPose {
 
 const SHADOW_WIDTH: Record<TowerId, number> = {
   arrow: 8, cannon: 11, ballista: 11, frost: 9, ember: 9, storm: 8, net: 10, prism: 8,
-  "hail-mortar": 11, "glaze-lance": 9, "salt-caster": 12,
+  "hail-mortar": 11, "glaze-lance": 9, "salt-caster": 12, "spore-caster": 12,
 };
 
 export function drawTower(
@@ -368,15 +373,26 @@ function drawTowerForm(
   const charge = preparing ? Math.max(0, 1 + releaseAge / spec.flight[0]) : 0;
   const age = preparing ? Infinity : releaseAge;
   const beat = reducedMotion ? 0 : time + x * 0.031 + y * 0.023;
-  const lift = type === "salt-caster" && !reducedMotion ? Math.round((preparing ? charge : Math.max(0, 1 - age / .25)) * 5) / 5 : 0;
-  const body = towerBody(type, tier, path, accent, style, lift);
+  // Salt-caster 10-keyframe catapult throw cycle:
+  // preparing (0.26s): Draw 1 -> Draw 2 -> Full Tension -> Whip Up (kf 1..4)
+  // post-shot (0.56s): Release -> Follow-through -> Recoil -> Reload 1 -> Reload 2 -> Ready (kf 5..9 -> 0)
+  const saltPhase = type !== "salt-caster" || reducedMotion ? 0
+    : preparing ? 0.11 + charge * 0.34
+    : age < 0.56 ? 0.55 + (age / 0.56) * 0.45
+    : 0;
+  const lift = saltPhase > 0.02 ? Math.min(9, Math.max(1, Math.round(saltPhase * 9))) / 9 : 0;
+  const sporePose = rich && type === "spore-caster" && !reducedMotion ? {
+    charge: Math.round(charge * 5) / 5,
+    release: preparing ? Infinity : age < .36 ? Math.round(age / .06) * .06 : Infinity,
+  } : undefined;
+  const body = towerBody(type, tier, path, accent, style, lift, sporePose);
   const compression = reducedMotion || rich ? 0 : .05 * Math.max(0, 1 - age / .06);
   stamp(ctx, body, x, y, 1 - compression);
   if (type === "salt-caster") return;
 
   const art = path && SPECIALIZATION_ART[type][path];
   if (art) {
-    art.animate(ctx, { x, y, beat, age, load, accent, charge, focus, rich });
+    art.animate(ctx, { x, y, beat, age, load, accent, charge, focus, rich, heading });
   } else if (type === "prism") {
     const top = y - 19.35;
     box(ctx, x - 3, top - 3.75, 6, 7.5, "#527b68");
@@ -429,6 +445,12 @@ function drawTowerForm(
     const lift = rich ? Math.sin(beat * 3.6) * .5 + charge * 1.5 : 0;
     linePixels(ctx, x, y - 16 - lift, x, y - 26 - lift, accent, 0.7, 1.6);
     diamond(ctx, x, y - 26 - lift, 1.6, "#ffffff");
+  } else if (type === "spore-caster") {
+    const pulse = rich ? Math.sin(beat * 3.2) : 0;
+    box(ctx, x - 1.2, y - 42.5 + pulse * .25, 2.4, 1.2, pulse > .2 ? "#e6f2ac" : "#b8d47d");
+    box(ctx, x + 1.2, y - 39.5 - pulse * .3, 1.2, 1.2, "#d9e99b");
+    if (rich) drawSporeAttack(ctx, { x, y, beat, age, load, accent, charge, focus, rich, heading });
+    return;
   } else if (type === "storm") {
     stamp(ctx, towerCore(type, 0, accent), x, y + Math.round(Math.sin(beat * 4)) / 2);
     const arc = !reducedMotion && (age < 0.20 || Math.sin(beat * 3.1) > 0.94);

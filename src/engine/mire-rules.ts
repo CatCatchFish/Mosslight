@@ -1,5 +1,5 @@
 import { ENEMIES } from "../content/enemies.ts";
-import { isAirborne, isStaggered } from "./enemy-abilities.ts";
+import { isStaggered } from "./enemy-abilities.ts";
 import { facingFor } from "./formation.ts";
 import { strikeGuardWithMire } from "./guards.ts";
 import type { GuardPost } from "./guards.ts";
@@ -9,15 +9,16 @@ import type { Effect, Enemy, Point, Route, TowerStats } from "./types.ts";
 const SKILLS = {
   mudskipper: { windup: .35, active: .42, recovery: .35, cooldown: 6, distance: 1.4 },
   crayfish: { duration: 3, cooldown: 7 },
-  moth: { duration: 1.6, cooldown: 9, distance: 1.8 },
-  catfish: { windup: .7, cooldown: 6.5, radius: 1.8, damage: 32, distance: .8 },
+  catfish: { windup: .7, cooldown: 7, radius: 1.8, damage: 24, distance: .8 },
   clam: { windup: .75, closed: 2, open: 2.8, cooldown: 6.5, radius: 1.6 },
   spider: { windup: .8, hatch: 4, cooldown: 8 },
+  elder: { windup: 1.05, recovery: .45, cooldown: 9 },
+  matriarch: { windup: 1.1, recovery: .4, cooldown: 9.5, healing: 28, supplyRadius: 3.4 },
   dragon: { windup: 1, echo: .9, front: .55, exposure: 2.5, cooldown: 8.5, length: 5 },
 } as const;
 
 export const MIRE_SKILL_ENEMIES = new Set<Enemy["type"]>([
-  "mudskipper", "shield-crayfish", "lantern-moth", "whisker-catfish", "stone-clam", "reed-spider", "spider-egg", "sluice-dragon",
+  "mudskipper", "shield-crayfish", "whisker-catfish", "stone-clam", "reed-spider", "spider-egg", "mire-elder", "mire-matriarch", "sluice-dragon",
 ]);
 
 export function mireArmor(enemy: Enemy) {
@@ -63,6 +64,13 @@ export function raiseMudShield(enemy: Enemy, source: Point) {
   enemy.mireCast = { startedAt: enemy.age, direction: [dx / distance, dy / distance] };
 }
 
+export function mireBloomSupply(enemy: Enemy, enemies: readonly Enemy[]) {
+  if (enemy.type !== "mire-matriarch") return [];
+  return enemies.filter(other => other.type === "spore-pod" && other.hp > 0 && !other.escaped &&
+    other.route === enemy.route && other.batch === enemy.batch &&
+    dist2(other.x, other.y, enemy.x, enemy.y) <= SKILLS.matriarch.supplyRadius ** 2);
+}
+
 export function mireBossState(enemy: Enemy) {
   if (enemy.type !== "sluice-dragon" || !enemy.mireCast) return undefined;
   const elapsed = enemy.age - enemy.mireCast.startedAt;
@@ -85,8 +93,7 @@ export function mireAdvance(enemy: Enemy, dt: number, usual: number, held: boole
       return distance / active * Math.min(running, dt);
     }
     case "stone-clam": return elapsed < SKILLS.clam.windup + SKILLS.clam.closed ? 0 : usual;
-    case "whisker-catfish": case "reed-spider": return 0;
-    case "lantern-moth": return Math.min(usual, SKILLS.moth.distance / SKILLS.moth.duration * dt);
+    case "whisker-catfish": case "reed-spider": case "mire-elder": case "mire-matriarch": return 0;
     case "sluice-dragon": return elapsed < SKILLS.dragon.windup ? 0 : usual;
     default: return usual;
   }
@@ -99,20 +106,28 @@ function moveTo(enemy: Enemy, progress: number) {
   Object.assign(enemy, at);
 }
 
+export function boardMirePassenger(carrier: Enemy, passenger: Enemy) {
+  if (carrier.type !== "lantern-moth" || passenger.type !== "mudskipper" ||
+      carrier.passenger || passenger.carriedBy) return false;
+  carrier.passenger = passenger;
+  passenger.carriedBy = carrier;
+  syncMirePassenger(carrier);
+  return true;
+}
+
 export function syncMirePassenger(carrier: Enemy) {
-  const cast = carrier.mireCast;
-  if (!cast?.passenger || cast.passenger.carriedBy !== carrier) return;
-  const passenger = cast.passenger;
-  const start = cast.origin!;
-  moveTo(passenger, Math.max(passenger.progress, Math.min(carrier.progress, start + SKILLS.moth.distance,
-    passenger.route.distance - .01)));
+  const passenger = carrier.passenger;
+  if (!passenger || passenger.carriedBy !== carrier) return;
+  moveTo(passenger, Math.max(passenger.progress,
+    Math.min(carrier.progress, passenger.route.distance - .01)));
 }
 
 export function dropMirePassenger(carrier: Enemy) {
-  const passenger = carrier.mireCast?.passenger;
-  if (passenger?.carriedBy !== carrier) return;
+  const passenger = carrier.passenger;
+  if (!passenger || passenger.carriedBy !== carrier) return;
   syncMirePassenger(carrier);
   passenger.carriedBy = undefined;
+  carrier.passenger = undefined;
 }
 
 function section(route: Route, from: number, to: number): Point[] {
@@ -138,11 +153,13 @@ interface MireBattle {
   readonly shallows: ReadonlySet<string>;
   readonly effects: Effect[];
   readonly time: number;
+  readonly guardRespawnFactor?: number;
   spawn(type: Enemy["type"], parent: Enemy, progress: number, lateral: number): Enemy;
 }
 
 export function stepMireSkills(battle: MireBattle, dt: number) {
   const { enemies, posts, routes, shallows, time, effects, spawn } = battle;
+  const respawnFactor = battle.guardRespawnFactor ?? 1;
   const units = Array.from(posts).flatMap(post => post.guards.map(guard => ({ post, guard })));
   const onGround = () => units.filter(({ guard }) => guard.hp > 0 && (guard.flight?.height ?? 0) < .48);
   const living = (enemy: Enemy) => enemy.hp > 0 && !enemy.escaped;
@@ -162,10 +179,14 @@ export function stepMireSkills(battle: MireBattle, dt: number) {
       dropMirePassenger(enemy);
       continue;
     }
+    if (enemy.type === "mire-matriarch" && enemy.hurtAgo >= .7 && mireBloomSupply(enemy, enemies).length) {
+      enemy.hp = Math.min(enemy.maxHp, enemy.hp + SKILLS.matriarch.healing * dt);
+    }
     if (enemy.carriedBy || isInTunnel(enemy)) continue;
     if (isStaggered(enemy) && enemy.type !== "spider-egg") {
-      if (enemy.mireCast) finish(enemy, enemy.type === "lantern-moth" ? SKILLS.moth.cooldown
-        : enemy.type === "shield-crayfish" ? SKILLS.crayfish.cooldown : SKILLS.mudskipper.cooldown);
+      if (enemy.mireCast) finish(enemy, enemy.type === "shield-crayfish" ? SKILLS.crayfish.cooldown
+        : enemy.type === "mire-elder" ? SKILLS.elder.cooldown
+        : enemy.type === "mire-matriarch" ? SKILLS.matriarch.cooldown : SKILLS.mudskipper.cooldown);
       continue;
     }
     const cast = enemy.mireCast;
@@ -184,23 +205,6 @@ export function stepMireSkills(battle: MireBattle, dt: number) {
       }
     } else if (enemy.type === "shield-crayfish") {
       if (cast && elapsed >= SKILLS.crayfish.duration) finish(enemy, SKILLS.crayfish.cooldown);
-    } else if (enemy.type === "lantern-moth") {
-      if (cast && (elapsed >= SKILLS.moth.duration || !isAirborne(enemy) || !living(cast.passenger!) ||
-          cast.passenger!.progress >= cast.origin! + SKILLS.moth.distance - 1e-6)) {
-        finish(enemy, SKILLS.moth.cooldown);
-        cue(enemy, "enemy-splash", .32);
-      } else if (ready && isAirborne(enemy)) {
-        const passenger = enemies.find(other => other.type === "mudskipper" && living(other) &&
-          other.route === enemy.route && !other.carriedBy && !engage(other) &&
-          Math.abs(other.progress - enemy.progress) <= .72);
-        if (passenger) {
-          passenger.mireCast = undefined;
-          passenger.mireReadyAt = passenger.age + SKILLS.mudskipper.cooldown;
-          passenger.carriedBy = enemy;
-          enemy.mireCast = { startedAt: enemy.age, passenger, origin: passenger.progress };
-          cue(enemy, "enemy-rally", .32, { radius: .8 });
-        }
-      }
     } else if (enemy.type === "whisker-catfish") {
       const { windup, cooldown, radius, damage, distance } = SKILLS.catfish;
       const nearby = (x: number, y: number) => onGround().filter(({ guard }) =>
@@ -211,7 +215,7 @@ export function stepMireSkills(battle: MireBattle, dt: number) {
         for (const { post, guard } of nearby(x, y).slice(0, 2)) {
           const dx = x - guard.x, dy = y - guard.y;
           const length = Math.hypot(dx, dy) || 1;
-          strikeGuardWithMire(post, guard, enemy, time, effects, damage, [dx * distance / length, dy * distance / length]);
+          strikeGuardWithMire(post, guard, enemy, time, effects, damage, [dx * distance / length, dy * distance / length], respawnFactor);
         }
         cue(enemy, "mire-drag", .42, { radius, direction: cast.direction });
         finish(enemy, cooldown);
@@ -229,7 +233,7 @@ export function stepMireSkills(battle: MireBattle, dt: number) {
         for (const { post, guard } of onGround()) {
           const gx = guard.x - enemy.x, gy = guard.y - enemy.y;
           if (gx * dx + gy * dy >= -.12 && dist2(guard.x, guard.y, enemy.x, enemy.y) <= radius ** 2)
-            strikeGuardWithMire(post, guard, enemy, time, effects, 26);
+            strikeGuardWithMire(post, guard, enemy, time, effects, 26, undefined, respawnFactor);
         }
         cue(enemy, "mire-shell", .50, { radius, direction: cast.direction });
       } else if (ready && (enemy.hp < enemy.maxHp && enemy.hurtAgo < .4 || engage(enemy))) {
@@ -253,6 +257,43 @@ export function stepMireSkills(battle: MireBattle, dt: number) {
       cue(enemy, "mire-hatch", .5, { radius: .7 });
       spawn("reed-spiderling", enemy, enemy.progress, -.25);
       spawn("reed-spiderling", enemy, enemy.progress, .25);
+    } else if (enemy.type === "mire-elder") {
+      const { windup, recovery, cooldown } = SKILLS.elder;
+      if (cast && elapsed >= windup + recovery) {
+        finish(enemy, cooldown);
+      } else if (cast && crossed(windup)) {
+        cue(enemy, "mire-summon", .62, { radius: 1.05 });
+        const origin = Math.max(0, enemy.progress - .35);
+        for (const offset of [-.26, .26] as const) {
+          const treant = spawn("mire-treant", enemy, origin, offset);
+          effects.push({
+            kind: "mire-summon", enemy: "mire-treant", x: treant.x, y: treant.y,
+            color: ENEMIES["mire-treant"].color, life: .52, total: .52, radius: .68,
+          });
+        }
+      } else if (ready && enemy.progress > 1.4) {
+        enemy.mireCast = { startedAt: enemy.age };
+        cue(enemy, "enemy-windup", windup, { radius: 1.05 });
+      }
+    } else if (enemy.type === "mire-matriarch") {
+      const { windup, recovery, cooldown } = SKILLS.matriarch;
+      const supplied = mireBloomSupply(enemy, enemies).length;
+      if (cast && elapsed >= windup + recovery) {
+        finish(enemy, cooldown);
+      } else if (cast && crossed(windup)) {
+        cue(enemy, "mire-bloom", .62, { radius: 1.25 });
+        const origin = Math.max(0, enemy.progress - .12);
+        for (const offset of [-.58, 0, .58].slice(0, 3 - supplied)) {
+          const pod = spawn("spore-pod", enemy, origin, offset);
+          effects.push({
+            kind: "mire-bloom", enemy: "spore-pod", x: pod.x, y: pod.y,
+            color: ENEMIES["spore-pod"].color, life: .48, total: .48, radius: .55,
+          });
+        }
+      } else if (ready && enemy.progress > 1.4 && supplied < 3) {
+        enemy.mireCast = { startedAt: enemy.age };
+        cue(enemy, "enemy-windup", windup, { radius: 1.25 });
+      }
     } else if (enemy.type === "sluice-dragon") {
       const { windup, echo, front, exposure, cooldown, length } = SKILLS.dragon;
       const half = enemy.hp <= enemy.maxHp / 2;
@@ -293,7 +334,7 @@ export function stepMireSkills(battle: MireBattle, dt: number) {
             if (cast.struck!.has(guard) || !insideTide(guard.x, guard.y, path)) continue;
             cast.struck!.add(guard);
             strikeGuardWithMire(post, guard, enemy, time, effects, 44 * scale,
-              [1.1 * scale * dx / norm, 1.1 * scale * dy / norm]);
+              [1.1 * scale * dx / norm, 1.1 * scale * dy / norm], respawnFactor);
           }
         }
       } else if (ready && enemy.age >= (enemy.mireReadyAt ?? 0)) {

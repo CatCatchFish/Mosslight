@@ -1,14 +1,17 @@
 import { facingFor, headingFor, planFormation } from "./formation.ts";
 import type { Arrival } from "./formation.ts";
 import { ENEMIES } from "../content/enemies.ts";
+import { resolveTalentEffects } from "../content/talents.ts";
+import type { TalentEffects, TalentLevels } from "../content/talents.ts";
 import { battleLoadout, TOWERS } from "../content/towers.ts";
+import type { WeatherPreset } from "../content/weather.ts";
 import { createRoute, dist2, isInTunnel, key, lowerTrackPoints } from "./route.ts";
 import { applySlow, blockHeavyHit, canNet, groundWithNet, enemyPace, enemyTurned, exposedDamageFactor, interruptVent, isAirborne, isBurrowing, isStaggered, spendScreen, staggerEnemy, updateEnemyActions } from "./enemy-abilities.ts";
 import { beaconTargets, boomHolds, DEVICES, devicePace, deviceSweepHits } from "./devices.ts";
 import type { DeviceState } from "./devices.ts";
 import { canReceiveQuill, createGuardPost, guardPathfinder, guardRallyPoints, guardStats, guardUnitStats, GUARD_BRANCHES, GUARD_BUILDINGS, GUARD_MASTERIES, isFlyingGuardPost, isGuardPost, isGuardPostId, matureGriffins, moveGuardRally, reinforceGuardPost, releaseGuard, SPEAR_THROW, updateGuards } from "./guards.ts";
 import type { Guard, GuardBranch, GuardPost, GuardQuill } from "./guards.ts";
-import { applySalt, dropMirePassenger, MIRE_SKILL_ENEMIES, mireAdvance, mireArmor, mireDamageFactor,
+import { applySalt, boardMirePassenger, dropMirePassenger, MIRE_SKILL_ENEMIES, mireAdvance, mireArmor, mireDamageFactor,
   raiseMudShield, stepMireSkills, syncMirePassenger } from "./mire-rules.ts";
 import type {
   BattlePhase,
@@ -39,7 +42,7 @@ export const TRACK_SWITCH_RETURN = 4;
 
 export function supportsTargetPriority(tower: Pick<Tower, "type" | "path">) {
   return tower.type === "ballista" || tower.type === "prism" || tower.type === "cannon" ||
-    tower.type === "hail-mortar" || tower.type === "glaze-lance" || tower.type === "salt-caster" ||
+    tower.type === "hail-mortar" || tower.type === "glaze-lance" || tower.type === "salt-caster" || tower.type === "spore-caster" ||
     (tower.type === "arrow" && tower.path === "sniper");
 }
 
@@ -82,6 +85,10 @@ export class DefenseGame {
   health = 0;
   kills = 0;
   weatherTowerRate = 1;
+  weatherTowerRange = 1;
+  weatherEnemySpeed = 1;
+  weatherEnemyArmor = 1;
+  readonly talents: TalentEffects;
   coreHit = -Infinity;
   breachingBoss: EnemyId | null = null;
   wave = 0;
@@ -104,8 +111,9 @@ export class DefenseGame {
   phase: BattlePhase = "ready";
   pending = new Map<string, PendingEntry>();
 
-  constructor(level: Level, selection?: readonly BuildingId[]) {
+  constructor(level: Level, selection?: readonly BuildingId[], talents?: TalentLevels) {
     this.level = level;
+    this.talents = resolveTalentEffects(talents);
     this.shallows = new Set(level.shallows?.map(point => key(...point)));
     this.loadout = battleLoadout(level, selection);
     this.devices = (level.devices ?? []).map((spec) => ({ spec, usedAt: -Infinity, struck: new Set() }));
@@ -129,9 +137,13 @@ export class DefenseGame {
     this.reset();
   }
   reset() {
-    this.gold = this.level.gold;
+    this.gold = Math.round(this.level.gold * this.talents.startingGoldFactor);
     this.health = this.level.health;
     this.kills = 0;
+    this.weatherTowerRate = 1;
+    this.weatherTowerRange = 1;
+    this.weatherEnemySpeed = 1;
+    this.weatherEnemyArmor = 1;
     this.coreHit = -Infinity;
     this.breachingBoss = null;
     this.wave = 0;
@@ -262,6 +274,16 @@ export class DefenseGame {
     return !this.paused && this.phase === "active" && this.deviceCooldown(index) === 0;
   }
 
+  applyWeather(preset: Pick<WeatherPreset, "towerRate" | "towerRange" | "enemySpeed" | "enemyArmor">) {
+    const ward = this.talents.weatherMitigation;
+    const rawRate = preset.towerRate ?? 1;
+    const rawRange = preset.towerRange ?? 1;
+    this.weatherTowerRate = rawRate < 1 ? 1 - (1 - rawRate) * (1 - ward) : rawRate;
+    this.weatherTowerRange = rawRange < 1 ? 1 - (1 - rawRange) * (1 - ward) : rawRange;
+    this.weatherEnemySpeed = preset.enemySpeed ?? 1;
+    this.weatherEnemyArmor = preset.enemyArmor ?? 1;
+  }
+
   deviceCooldown(index: number) {
     const device = this.devices[index];
     if (!device) return Infinity;
@@ -272,7 +294,7 @@ export class DefenseGame {
         if (other.spec.kind === spec.kind && other.spec.cooldownGroup === spec.cooldownGroup)
           usedAt = Math.max(usedAt, other.usedAt);
     }
-    return Math.max(0, DEVICES[spec.kind].cooldown - (this.time - usedAt));
+    return Math.max(0, DEVICES[spec.kind].cooldown * this.talents.deviceCooldownFactor - (this.time - usedAt));
   }
 
   activateDevice(index: number) {
@@ -312,10 +334,11 @@ export class DefenseGame {
       : 0;
   }
   reward(id: string) {
-    return Math.min(
+    const base = Math.min(
       this.level.maxEarlyReward,
       Math.ceil(this.seconds(id) / this.level.earlyRate),
     );
+    return Math.round(base * this.talents.earlyRewardFactor);
   }
   release(id: string, early = false) {
     const entry = this.pending.get(id);
@@ -360,7 +383,7 @@ export class DefenseGame {
       const [rally] = this.guardPoints(index, type);
       if (!rally) return false;
       this.guardPosts.set(index, createGuardPost(index, plot, rally, findPath, type,
-        isFlyingGuardPost(type) ? this.griffinCanLand : undefined, this.time));
+        isFlyingGuardPost(type) ? this.griffinCanLand : undefined, this.paused ? undefined : this.time, this.time));
       this.completeConstruction(plot, base.cost, color);
       return true;
     }
@@ -378,7 +401,7 @@ export class DefenseGame {
       fired: -Infinity,
       heading: 6,
       launchHeading: 6,
-      builtAt: this.time,
+      builtAt: this.paused ? undefined : this.time,
     });
     this.completeConstruction(plot, stats.cost, spec.color);
     return true;
@@ -413,7 +436,7 @@ export class DefenseGame {
       : post.tier === 2 && branch && spec.branches.includes(branch) ? GUARD_BRANCHES[branch]
       : post.tier === 3 && post.branch && !branch ? GUARD_MASTERIES[post.branch] : null;
     if (!next || this.gold < next.cost) return false;
-    reinforceGuardPost(post, this.time, branch, this.wave);
+    reinforceGuardPost(post, this.time, branch, this.wave, !this.paused);
     this.completeConstruction(post.origin, next.cost, spec.color);
     return true;
   }
@@ -442,7 +465,7 @@ export class DefenseGame {
     const spec = TOWERS[tower.type];
     const investment = spec.tiers.slice(0, tower.tier).reduce((sum, tier) => sum + tier.cost, 0)
       + (tower.path ? spec.paths[tower.path].cost : 0);
-    return Math.floor((investment * TOWER_RESALE_PERCENT) / 100);
+    return Math.floor(investment * this.talents.sellRefundRate);
   }
   sell(index: number) {
     const building = this.buildingAt(index);
@@ -477,8 +500,13 @@ export class DefenseGame {
       ? path === undefined ? spec.tiers[tower.tier] : undefined
       : path && Object.hasOwn(spec.paths, path) ? spec.paths[path] : undefined;
     if (!next || this.gold < next.cost) return false;
-    tower.previous = { tier: tower.tier, path: tower.path };
-    tower.upgradedAt = this.time;
+    if (this.paused) {
+      tower.previous = undefined;
+      tower.upgradedAt = undefined;
+    } else {
+      tower.previous = { tier: tower.tier, path: tower.path };
+      tower.upgradedAt = this.time;
+    }
     tower.tier = tower.tier === 1 ? 2 : tower.tier === 2 ? 3 : 4;
     tower.path = path ?? null;
     this.completeConstruction([tower.x, tower.y], next.cost, next.color ?? spec.color);
@@ -606,6 +634,7 @@ export class DefenseGame {
     tower.cooldown = stats.interval / Math.max(.35, this.weatherTowerRate);
   }
   private damage(enemy: Enemy, stats: Omit<TowerStats, "cost" | "range" | "interval">, strength = 1, projectile?: Projectile["kind"], source?: Point) {
+    if (enemy.carriedBy) return;
     const spec = ENEMIES[enemy.type];
     const armor = spec.armored ? (stats.armorBonus ?? 1) : 1;
     const damage =
@@ -614,7 +643,7 @@ export class DefenseGame {
       armor *
       (enemy.slows.size ? (stats.chilledDamage ?? 1) : 1);
     if (blockHeavyHit(enemy, damage, this.effects)) return;
-    enemy.hp -= damage * mireArmor(enemy) * mireDamageFactor(enemy, source && !stats.splash ? source : undefined) *
+    enemy.hp -= damage * this.weatherEnemyArmor * mireArmor(enemy) * mireDamageFactor(enemy, source && !stats.splash ? source : undefined) *
       exposedDamageFactor(enemy) * spendScreen(enemy, this.effects);
     if (source && enemy.type === "shield-crayfish" && enemy.hp > 0 && !enemy.mireCast) {
       let nearest = source;
@@ -626,6 +655,7 @@ export class DefenseGame {
       raiseMudShield(enemy, nearest);
     }
     if (stats.salt) applySalt(enemy, stats.salt);
+    if (stats.spore) this.applySpore(enemy, stats.spore);
     enemy.hurtAgo = 0;
     const freshBurn = stats.burn && (enemy.burnLife ?? 0) <= 0;
     if (stats.burn && (enemy.burnRate ?? 0) <= stats.burn.damagePerSecond) {
@@ -647,6 +677,69 @@ export class DefenseGame {
       interruptVent(enemy, this.effects);
     }
   }
+  private applySpore(enemy: Enemy, spore: NonNullable<TowerStats["spore"]>) {
+    const current = enemy.spore && enemy.spore.until > enemy.age ? enemy.spore : undefined;
+    const duration = Math.max(current?.duration ?? 0, spore.duration);
+    enemy.spore = {
+      until: Math.max(current?.until ?? 0, enemy.age + spore.duration),
+      duration,
+      damagePerSecond: Math.max(current?.damagePerSecond ?? 0, spore.damagePerSecond),
+      jumps: Math.max(current?.jumps ?? 0, spore.jumps),
+      spread: Math.max(current?.spread ?? 0, spore.spread),
+      burst: current?.burst ?? spore.burst,
+    };
+  }
+  private propagateSpores() {
+    const handled = new Set<Enemy>();
+    let propagated = true;
+    while (propagated) {
+      propagated = false;
+      for (const enemy of this.enemies) {
+        const spore = enemy.spore;
+        if (enemy.escaped || enemy.hp > 0 || handled.has(enemy) || !spore || spore.until <= enemy.age) continue;
+        handled.add(enemy);
+        propagated = true;
+        let nearest: Enemy | undefined;
+        let distance = spore.spread ** 2;
+        if (spore.jumps > 0) {
+          for (const other of this.enemies) {
+            if (other === enemy || other.hp <= 0 || other.escaped || isInTunnel(other) ||
+                (other.spore && other.spore.until > other.age)) continue;
+            const nextDistance = dist2(enemy.x, enemy.y, other.x, other.y);
+            if (nextDistance <= distance) {
+              nearest = other;
+              distance = nextDistance;
+            }
+          }
+        }
+        if (nearest) {
+          const duration = spore.duration * .8;
+          nearest.spore = {
+            until: nearest.age + duration,
+            duration,
+            damagePerSecond: spore.damagePerSecond,
+            jumps: spore.jumps - 1,
+            spread: spore.spread,
+          };
+          this.effects.push({
+            kind: "spore-spread", x: nearest.x, y: nearest.y,
+            pathPoints: [[enemy.x, enemy.y], [nearest.x, nearest.y]],
+            color: "#c8ed83", life: .38, total: .38,
+          });
+        }
+        if (!spore.burst) continue;
+        this.effects.push({
+          kind: "spore-burst", x: enemy.x, y: enemy.y, radius: spore.burst.radius,
+          color: "#d4ed91", life: .48, total: .48,
+        });
+        for (const other of this.enemies) {
+          if (other === enemy || other.hp <= 0 || other.escaped || isInTunnel(other) ||
+              dist2(enemy.x, enemy.y, other.x, other.y) > spore.burst.radius ** 2) continue;
+          this.damage(other, { damage: spore.burst.damage, color: "#d4ed91" }, 1, "spore-caster", [enemy.x, enemy.y]);
+        }
+      }
+    }
+  }
   private applyChain(origin: Enemy, stats: TowerStats, kind: TowerId) {
     if (!stats.chain) return [];
     const seen = new Set([origin]);
@@ -656,7 +749,7 @@ export class DefenseGame {
       let closest: Enemy | null = null;
       let distance = stats.chain.range ** 2;
       for (const next of this.enemies) {
-        if (seen.has(next) || next.hp <= 0 || next.escaped || isInTunnel(next)) continue;
+        if (seen.has(next) || next.hp <= 0 || next.escaped || next.carriedBy || isInTunnel(next)) continue;
         const d = dist2(source.x, source.y, next.x, next.y);
         if (d <= distance) {
           closest = next;
@@ -701,16 +794,12 @@ export class DefenseGame {
         const net = stats.net;
         if (available && net) {
           groundWithNet(target, net.seconds);
-          if (target.type === "lantern-moth") dropMirePassenger(target);
           if (net.spread) {
             const radiusSquared = net.spread ** 2;
             const nearby = this.enemies.filter((enemy) => enemy !== target && enemy.hp > 0 && !enemy.escaped &&
               !isInTunnel(enemy) && canNet(enemy) && dist2(enemy.x, enemy.y, shot.tx, shot.ty) <= radiusSquared);
             nearby.sort((a, b) => dist2(a.x, a.y, shot.tx, shot.ty) - dist2(b.x, b.y, shot.tx, shot.ty));
-            for (const enemy of nearby.slice(0, 2)) {
-              groundWithNet(enemy, net.seconds);
-              if (enemy.type === "lantern-moth") dropMirePassenger(enemy);
-            }
+            for (const enemy of nearby.slice(0, 2)) groundWithNet(enemy, net.seconds);
           }
         }
         this.effects.push({
@@ -720,7 +809,7 @@ export class DefenseGame {
         return false;
       }
       const impact = (enemy: Enemy) => {
-        if (shot.volleyHits?.has(enemy) || (stats.groundOnly && isAirborne(enemy))) return;
+        if (shot.volleyHits?.has(enemy)) return;
         shot.volleyHits?.add(enemy);
         this.damage(enemy, stats, 1, shot.kind, [shot.x, shot.y]);
       };
@@ -739,7 +828,7 @@ export class DefenseGame {
         }
       }
       const total =
-        shot.kind === "cannon" || shot.kind === "salt-caster" ? 0.46 : shot.kind === "frost" ? 0.4 : 0.18;
+        shot.kind === "cannon" || shot.kind === "salt-caster" ? 0.46 : shot.kind === "frost" ? 0.4 : shot.kind === "spore-caster" ? 0.32 : 0.18;
       this.effects.push({
         kind: shot.kind,
         path: shot.path,
@@ -770,7 +859,8 @@ export class DefenseGame {
   private placeEnemy(type: EnemyId, route: Route, batch: number, lateral: number,
     progress: number, healthFactor = 1, speedFactor = 1) {
     const spec = ENEMIES[type];
-    const hp = Math.round(spec.hp * healthFactor);
+    const tierFactor = spec.hpTier === "base" ? 1.15 : spec.hpTier === "elite" ? 1.22 : 1;
+    const hp = Math.round(spec.hp * healthFactor * tierFactor);
     const point = route.at(progress, lateral);
     const ahead = route.at(progress + .05, lateral);
     const enemy: Enemy = {
@@ -791,7 +881,25 @@ export class DefenseGame {
       const next = group.arrivals[group.sent];
       if (!next || this.time + 1e-7 < group.nextAt) continue;
       const [first] = group.route.points;
-      this.placeEnemy(next.type, group.route, next.batch, next.lateral, 0, group.hp, group.speed);
+      const spawned = this.placeEnemy(next.type, group.route, next.batch, next.lateral, 0, group.hp, group.speed);
+      if (next.type === "mudskipper") {
+        let carrier: Enemy | undefined;
+        let nearest = Infinity;
+        for (const enemy of this.enemies) {
+          if (enemy.type !== "lantern-moth" || enemy.route !== group.route ||
+              enemy.batch !== next.batch || enemy.hp <= 0 || enemy.escaped || enemy.passenger) continue;
+          const distance = Math.abs(enemy.progress - spawned.progress);
+          if (distance >= nearest) continue;
+          carrier = enemy;
+          nearest = distance;
+        }
+        if (carrier && boardMirePassenger(carrier, spawned)) {
+          this.effects.push({
+            kind: "enemy-rally", enemy: "lantern-moth", x: carrier.x, y: carrier.y,
+            color: ENEMIES["lantern-moth"].color, radius: .8, life: .32, total: .32,
+          });
+        }
+      }
       const previous = group.arrivals[group.sent - 1];
       if (!previous || previous.batch !== next.batch) {
         const [x, y] = first;
@@ -842,6 +950,16 @@ export class DefenseGame {
         }
       } else if (spec.regeneration && enemy.hurtAgo >= spec.regeneration.delay) {
         enemy.hp = Math.min(enemy.maxHp, enemy.hp + spec.regeneration.rate * dt);
+      }
+      if (enemy.spore) {
+        if (enemy.spore.until <= enemy.age) {
+          delete enemy.spore;
+        } else {
+          enemy.hp -= enemy.spore.damagePerSecond * Math.min(dt, enemy.spore.until - enemy.age) *
+            exposedDamageFactor(enemy) * mireArmor(enemy) * mireDamageFactor(enemy);
+          enemy.hurtAgo = 0;
+          if (enemy.hp > 0 && enemy.spore.until <= enemy.age) delete enemy.spore;
+        }
       }
     }
     updateEnemyActions(this.enemies, this.effects, (enemy) => {
@@ -895,6 +1013,7 @@ export class DefenseGame {
     if (this.enemies.some(enemy => MIRE_SKILL_ENEMIES.has(enemy.type))) {
       stepMireSkills({ enemies: this.enemies, posts: this.guardPosts.values(), routes: this.allRoutes,
         shallows: this.shallows, effects: this.effects, time: this.time,
+        guardRespawnFactor: this.talents.guardRespawnFactor,
         spawn: (type, parent, progress, lateral) => this.placeEnemy(type, parent.route, parent.batch, lateral, progress),
       }, dt);
     }
@@ -904,7 +1023,7 @@ export class DefenseGame {
       if (enemy.hp <= 0 || enemy.escaped || enemy.carriedBy) continue;
       const spec = ENEMIES[enemy.type];
       const heldByBoom = boomHolds(this.devices, enemy, this.time);
-      const advance = mireAdvance(enemy, dt, enemy.speed * enemyPace(enemy, devicePace(this.devices, enemy, this.time)) * dt,
+      const advance = mireAdvance(enemy, dt, enemy.speed * this.weatherEnemySpeed * enemyPace(enemy, devicePace(this.devices, enemy, this.time)) * dt,
         heldByBoom || Boolean(blocked?.has(enemy)));
       enemy.progress += advance;
       const previousStep = Math.floor(enemy.walk / 4);
@@ -949,9 +1068,26 @@ export class DefenseGame {
     }
     this.advanceProjectiles(dt);
     const bursted = new Set<Enemy>();
+    const bloomed = new Set<Enemy>();
     let propagated = true;
     while (propagated) {
       propagated = false;
+      for (const enemy of this.enemies) {
+        if (enemy.escaped || enemy.hp > 0) continue;
+        const burst = ENEMIES[enemy.type].bloomBurst;
+        if (!burst || bloomed.has(enemy)) continue;
+        bloomed.add(enemy);
+        propagated = true;
+        this.effects.push({
+          kind: "mire-bloom-burst", enemy: enemy.type, x: enemy.x, y: enemy.y,
+          color: ENEMIES[enemy.type].color, radius: burst.radius, life: .52, total: .52,
+        });
+        for (const other of this.enemies) {
+          if (other === enemy || other.hp <= 0 || other.escaped || isInTunnel(other) ||
+              dist2(enemy.x, enemy.y, other.x, other.y) > burst.radius ** 2) continue;
+          this.damage(other, { damage: burst.damage });
+        }
+      }
       for (const enemy of this.enemies) {
         if (enemy.escaped || enemy.hp > 0 || bursted.has(enemy)) continue;
         const burst = ENEMIES[enemy.type].gasBurst;
@@ -1002,7 +1138,12 @@ export class DefenseGame {
         }
       }
     }
+    this.propagateSpores();
     this.enemies = this.enemies.filter((enemy) => {
+      if ((enemy.hp <= 0 || enemy.escaped) && enemy.carriedBy) {
+        if (enemy.carriedBy.passenger === enemy) enemy.carriedBy.passenger = undefined;
+        enemy.carriedBy = undefined;
+      }
       if (enemy.escaped) {
         dropMirePassenger(enemy);
         return false;
@@ -1041,8 +1182,9 @@ export class DefenseGame {
       }
       tower.cooldown = Math.max(0, tower.cooldown - dt);
       const stats = towerStats(tower);
-      const inRange = (enemy: Enemy) => enemy.hp > 0 && !enemy.escaped && !isInTunnel(enemy) &&
-        (!stats.groundOnly || !isAirborne(enemy)) && dist2(enemy.x, enemy.y, tower.x, tower.y) <= stats.range ** 2;
+      const effectiveRange = stats.range * this.weatherTowerRange;
+      const inRange = (enemy: Enemy) => enemy.hp > 0 && !enemy.escaped && !enemy.carriedBy && !isInTunnel(enemy) &&
+        dist2(enemy.x, enemy.y, tower.x, tower.y) <= effectiveRange ** 2;
       const held = tower.focus?.target;
       let target = held && inRange(held) ? held : undefined;
       let capture: Enemy | undefined;
@@ -1120,7 +1262,7 @@ export class DefenseGame {
         target, damage: SPEAR_THROW.damage, color: "#f1d69e", age: 0,
         releaseDelay: 0,
         duration: Math.max(0.12, Math.hypot(target.x - guard.x, target.y - guard.y) / SPEAR_THROW.speed),
-      }), this.guardQuills);
+      }), this.guardQuills, this.talents.guardRespawnFactor);
     if (alive !== guards.filter((guard) => guard.hp > 0).length) this.revision++;
     return blocked;
   }

@@ -5,7 +5,7 @@
 //   ?mode=frost-roster  snowbrush fox, bear and porcupine motion
 //   ?mode=frost-moose  final boss gait, tower freeze and antler sweep
 //   ?mode=mire-roster   poison-marsh enemies across facings & states
-//   ?mode=mire-and-fox  snowbrush fox and the five poison-marsh enemies
+//   ?mode=mire-and-fox  snowbrush fox and the six poison-marsh enemies
 //   ?mode=mire-crawlers  full movement and attack keyframes for leech and viper
 import { ENEMIES } from "../../src/content/enemies.ts";
 import { loadEnemyAtlases } from "../../src/render/enemy-atlas.ts";
@@ -584,14 +584,17 @@ async function run() {
       }
     }
   } else if (mode === "mire-roster" || mode === "mire-and-fox") {
-    const W = 51, H = 44, L = 45;
+    const W = 74, H = 72, L = 45;
     const cols = ["步态 F0", "步态 F1", "步态 F2", "步态 F3", "朝西", "朝南", "朝北", "蓄势", "释放", "恢复"];
     const rows: { name: string; type: EnemyId }[] = [
       { name: "沼枝树精", type: "mire-treant" },
+      { name: "古沼树祖", type: "mire-elder" },
       { name: "泥沼潜鳄", type: "mire-croc" },
       { name: "蔓骨毒蛇", type: "vine-viper" },
       { name: "腐根菌巨兽", type: "mire-mycelid" },
       { name: "浮囊瘴母", type: "bloat-sporer" },
+      { name: "活体孢囊", type: "spore-pod" },
+      { name: "腐冠瘴母", type: "mire-matriarch" },
     ];
     if (mode === "mire-and-fox") rows.unshift({ name: "雪帚狐", type: "snowbrush-fox" });
     canvas.width = (cols.length * W + L) * SCALE;
@@ -618,24 +621,41 @@ async function run() {
         const ey = (cy + H - 10 - 9) / 16;
         const facing = c === 4 ? "west" : c === 5 ? "south" : c === 6 ? "north" : "east";
         const isTreant = row.type === "mire-treant";
+        const isElder = row.type === "mire-elder";
         const isViper = row.type === "vine-viper";
         const isCroc = row.type === "mire-croc";
         const isSporer = row.type === "bloat-sporer";
+        const isPod = row.type === "spore-pod";
+        const isMatriarch = row.type === "mire-matriarch";
+        const hasMelee = isMatriarch || isPod;
+        const melee = hasMelee && c < 9 ? {
+          style: (isMatriarch ? "stomp" : "pounce") as const,
+          start: c === 7 ? 2.05 : 1.82,
+          impact: c === 7 ? 2.6 : 2.18,
+          end: c === 7 ? 3 : 2.6,
+          hit: false,
+          direction: [1, 0] as const,
+          facing: "east" as const,
+        } : undefined;
         const e = makeEnemy(row.type, {
           x: ex,
           y: ey,
           facing,
           walk: c < 4 ? c + 0.15 : 1.1,
-          action: isTreant || isViper || isCroc || isSporer || isFox
+          action: isTreant || isElder || isViper || isCroc || isSporer || isFox
             ? c === 7 ? { phase: "windup", progress: .72 }
               : c === 8 ? { phase: "active", progress: isCroc ? .14 : .4 } : undefined
             : undefined,
+          melee,
+          mireCast: isElder && c === 8 || isMatriarch && c === 9
+            ? { startedAt: 1.2 } : undefined,
           quillsRegrowAt: isViper && c >= 8 ? 3 : undefined,
         });
         ctx.save();
         const anchorX = cx + W / 2, anchorY = cy + H - 10;
         ctx.translate(anchorX, anchorY);
-        ctx.scale(1.4, 1.4);
+        const artScale = isMatriarch ? .82 : isElder ? .95 : 1.4;
+        ctx.scale(artScale, artScale);
         ctx.translate(-anchorX, -anchorY);
         drawEnemy(ctx, e, 2.35, false);
         if (isViper && c === 8) {

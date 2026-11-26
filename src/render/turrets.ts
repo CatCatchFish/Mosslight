@@ -19,6 +19,7 @@ const mounts: Record<TowerId, Mount> = {
   "hail-mortar": { top: -16, length: 0 },
   "glaze-lance": { top: -22, length: 0 },
   "salt-caster": { top: -18, length: 0 },
+  "spore-caster": { top: -43.5, length: 0 },
 };
 const specializationMounts: Readonly<Record<string, Mount>> = {
   sniper: { top: -21.5, length: 13.5 },
@@ -41,6 +42,8 @@ const specializationMounts: Readonly<Record<string, Mount>> = {
   glacier: { top: -16.5, length: 0 },
   skewer: { top: -24, length: 0 },
   flurry: { top: -21, length: 0 },
+  "burst-spores": { top: -43.5, length: 0 },
+  "parasitic-spores": { top: -43.5, length: 0 },
 };
 const HEAD_PADDING = 10;
 const headCache = new Map<string, HTMLCanvasElement>();

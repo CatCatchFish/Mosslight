@@ -10,7 +10,9 @@ import { box, canvas2d } from "./canvas.ts";
 import { drawInterceptorUpgrade } from "./interceptor-upgrade.ts";
 import { artFor, lanternMoth, mudskipper, paddleOtter, reedPost, reedSpider, reedSpiderling, shieldCrayfish,
   sluiceDragon, stoneClam, whiskerCatfish } from "./mire-expansion-art.ts";
-import type { ArtOptions, EnemyAttackPhase, OtterPose, Painter } from "./mire-expansion-art.ts";
+import { mireElder } from "./mire-elder-art.ts";
+import { mireMatriarch, sporePod } from "./mire-matriarch-art.ts";
+import type { ArtOptions, EnemyAttackPhase, OtterIdle, OtterPose, Painter } from "./mire-expansion-art.ts";
 import { paintSprite, stamp } from "./pixel-sprite.ts";
 import { highQuality } from "./quality.ts";
 import { shadeSprite } from "./tower-life.ts";
@@ -28,6 +30,7 @@ const egg: Painter = ({ gem, trace, r, frame }) => {
 export const MIRE_PAINTERS = {
   mudskipper, "shield-crayfish": shieldCrayfish, "lantern-moth": lanternMoth, "whisker-catfish": whiskerCatfish,
   "stone-clam": stoneClam, "reed-spider": reedSpider, "spider-egg": egg, "reed-spiderling": reedSpiderling,
+  "mire-elder": mireElder, "mire-matriarch": mireMatriarch, "spore-pod": sporePod,
   "sluice-dragon": sluiceDragon,
 } satisfies Partial<Record<EnemyId, Painter>>;
 
@@ -38,13 +41,15 @@ export function isMireEnemy(type: EnemyId): type is MireEnemy {
 }
 
 export const MIRE_SCALES: Record<MireEnemy, number> = {
-  mudskipper: .61, "shield-crayfish": .74, "lantern-moth": .74, "whisker-catfish": .99,
-  "stone-clam": 1.04, "reed-spider": 1.05, "spider-egg": .71, "reed-spiderling": .48, "sluice-dragon": 1.45,
+  mudskipper: .61, "shield-crayfish": .74, "lantern-moth": .74, "whisker-catfish": .84,
+  "stone-clam": 1.04, "reed-spider": 1.05, "spider-egg": .71, "reed-spiderling": .48,
+  "mire-elder": 1.12, "mire-matriarch": 1.58, "spore-pod": .7, "sluice-dragon": 1.45,
 };
 
 export const MIRE_HEIGHTS: Record<MireEnemy, number> = {
   mudskipper: 45, "shield-crayfish": 50, "lantern-moth": 53, "whisker-catfish": 54,
-  "stone-clam": 55, "reed-spider": 52, "spider-egg": 26, "reed-spiderling": 38, "sluice-dragon": 61,
+  "stone-clam": 55, "reed-spider": 52, "spider-egg": 26, "reed-spiderling": 38,
+  "mire-elder": 60, "mire-matriarch": 74, "spore-pod": 30, "sluice-dragon": 61,
 };
 
 const cached = new Map<string, HTMLCanvasElement>();
@@ -56,7 +61,7 @@ function sprite(id: string, painter: Painter, frame: number, facing: Facing, ski
   const key = [
     id, frame, view, Number(skill), Number(rich),
     options?.gate, options?.fractured, options?.attack,
-    options?.otter?.tier, options?.otter?.branch, options?.otter?.pose,
+    options?.otter?.tier, options?.otter?.branch, options?.otter?.pose, options?.otter?.idle,
   ].join("/");
   let picture = cached.get(key);
   if (!picture) {
@@ -82,6 +87,7 @@ export function mireEnemyPose(enemy: Enemy, reducedMotion: boolean, time = 0) {
   const facing = cast?.direction ? facingFor(...cast.direction) : melee?.facing;
   const skill = enemy.type === "stone-clam" ? Boolean(cast && elapsed >= 2.75)
     : enemy.type === "sluice-dragon" ? mireBossState(enemy) === "open"
+    : enemy.type === "lantern-moth" ? Boolean(enemy.passenger)
     : enemy.type === "reed-spiderling" ? enemy.age < .24 : Boolean(cast);
   const flaps = enemy.type === "lantern-moth";
   const frame = reducedMotion ? 0
@@ -140,38 +146,72 @@ export function drawPaddleOtter(ctx: CanvasRenderingContext2D, guard: Guard, pos
   const ready = !strike && guardBraceReady(guard, post, time);
   const braced = time - (guard.braceAt ?? -Infinity) < .38 ||
     (ready && Boolean(guard.target?.mireCast));
+  const atEase = !dead && !move && !strike && !braced && !guard.target && sinceHit > .2;
+  const idle = !still && atEase;
   const thrust = strike && impact >= 0 && impact < .22 ? (1 - impact / .22) * (strike.bonus ? 4 : 2.5) : 0;
   const pull = strike && impact < 0 ? -1.5 : 0;
   const [dx, dy]: Point = strike ? strike.direction : [guard.facing, 0];
-  const facing = facingFor(dx, dy);
+  const facing = atEase ? "south" : facingFor(dx, dy);
   const recoil = Math.max(0, 1 - sinceHit / .19) * 3;
   const x = guard.x * CELL + 8 + (still ? 0 : dx * (thrust + pull) + guard.recoil[0] * recoil);
   const y = guard.y * CELL + 10 + (still ? 0 : dy * (thrust + pull) + guard.recoil[1] * recoil);
-  const stride = still ? 0 : move ? Math.floor(guard.walk * 2) % 6 : Math.floor(time * 2.2 + post.index * 1.7) % 6;
+  const slot = Math.max(0, post.guards.indexOf(guard));
+  const breathClock = time * (2.2 + slot * .13) + post.index * 1.17 + slot * 2.31;
+  const breath = idle ? Math.sin(breathClock) : 0;
+  const watch = idle ? (time * (.94 + slot * .041) + post.index * .83 + slot * 2.17) % 9.4 : 0;
+  const checkBeat = idle ? (time + post.index * 5.7 + slot * 7.9) % 16.5 : Infinity;
+  const tailBeat = idle ? (time + post.index * 8.3 + slot * 11.1) % (19 + slot % 3) : Infinity;
+  let idleAction: OtterIdle = "none";
+  let idleFrame = idle ? Math.floor(time * (2.2 + slot * .13) + post.index * 1.7 + slot) % 8 : 0;
+  if (idle && checkBeat > 2.4 && checkBeat < 3.75) {
+    idleAction = "check-paddle";
+    idleFrame = Math.floor((checkBeat - 2.4) * 5) % 4;
+  } else if (idle && tailBeat > 1.2 && tailBeat < 2.4) {
+    idleAction = "tail-lift";
+    idleFrame = Math.floor((tailBeat - 1.2) * 5) % 4;
+  } else if (idle && tailBeat >= 2.4 && tailBeat < 2.85) {
+    idleAction = "tail-slap";
+    idleFrame = Math.floor((tailBeat - 2.4) * 8) % 2;
+  } else if (idle && tailBeat >= 2.85 && tailBeat < 3.7) {
+    idleAction = "splash";
+    idleFrame = Math.floor((tailBeat - 2.85) * 6) % 4;
+  } else if (idle && watch > 2.6 && watch < 3.65) {
+    idleAction = "sniff";
+    idleFrame = Math.floor((watch - 2.6) * 6) % 4;
+  } else if (idle && watch > 4.1 && watch < 4.55) {
+    idleAction = "flick";
+    idleFrame = Math.floor((watch - 4.1) * 8) % 2;
+  } else if (idle && watch > 6.15 && watch < 7.25) {
+    idleAction = "scan";
+    idleFrame = Math.floor((watch - 6.15) * 6) % 4;
+  } else if (idle && ((watch > 1.2 && watch < 1.46) || (watch > 5.25 && watch < 5.43))) {
+    idleAction = "blink";
+    idleFrame = 0;
+  }
+  const stride = still ? 0 : move ? Math.floor(guard.walk * 2) % 6 : idleFrame;
   const pose: OtterPose = strike
     ? (impact < 0 ? "windup" : "strike")
     : braced ? "brace"
-    : move ? "walk" : "idle";
-  const bob = still ? 0 : move ? Math.abs(Math.sin(stride * Math.PI / 3)) : Math.sin(time * 2.9 + post.index) * .35;
+    : move ? "walk"
+    : "idle";
+  const bob = still ? 0 : move ? Math.abs(Math.sin(stride * Math.PI / 3)) : breath * .45;
   ctx.save();
   ctx.globalAlpha = alpha;
-  pixelOval(ctx, x, y + .8, 7, 2.2, 16, "#17252085", 1.1);
+  pixelOval(ctx, x, y + .8, 8.2, 2.5, 16, "#17252085", 1.1);
   if (ready) box(ctx, x - 3.5, y + 1.2, 7, .8, "#f6df9c");
   if (braced) diamond(ctx, x + 5.5, y - 5.5, 1.5, "#fff4be");
-  stamp(
-    ctx,
-    sprite("paddle-otter", paddleOtter, stride, facing, braced, {
-      otter: { tier: post.tier, branch: post.branch, pose },
-    }),
-    x,
-    y - bob,
-    dead ? .56 - .15 * (1 - alpha) : .64,
-    facing === "west" ? -1 : 1,
-  );
+  const picture = sprite("paddle-otter", paddleOtter, stride, facing, braced, {
+    otter: { tier: post.tier, branch: post.branch, pose, idle: idleAction },
+  });
+  ctx.save();
+  ctx.translate(x, y - bob);
+  if (idle) ctx.scale(1 - breath * .012, 1 + breath * .018);
+  stamp(ctx, picture, 0, 0, dead ? .62 - .14 * (1 - alpha) : .74, facing === "west" ? -1 : 1);
+  ctx.restore();
   const health = guard.hp / guardUnitStats(post, guard).health;
   if (!dead && health < 1) {
-    box(ctx, x - 5, y - 26, 10, 2.5, "#30352d");
-    box(ctx, x - 4.5, y - 25.4, 9 * health, 1, "#c9df8f");
+    box(ctx, x - 5, y - 34, 10, 2.5, "#30352d");
+    box(ctx, x - 4.5, y - 33.4, 9 * health, 1, "#c9df8f");
   }
   ctx.restore();
 }

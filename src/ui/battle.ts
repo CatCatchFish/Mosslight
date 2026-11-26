@@ -1,4 +1,4 @@
-import { mireBossState } from "../engine/mire-rules.ts";
+import { mireBloomSupply, mireBossState } from "../engine/mire-rules.ts";
 import { STAGES, battleWeather, newlyIntroduced } from "../content/campaign.ts";
 import { ENEMIES } from "../content/enemies.ts";
 import { TOWERS } from "../content/towers.ts";
@@ -9,7 +9,8 @@ import { NET_IMMUNITY } from "../engine/enemy-abilities.ts";
 import { guardStats, guardUnitStats, GUARD_BRANCHES, GUARD_BUILDINGS, GUARD_MASTERIES, isGuardPost, isGuardPostId, SPEAR_THROW } from "../engine/guards.ts";
 import type { GuardBranch } from "../engine/guards.ts";
 import type { BuildingId, Effect, Enemy, EnemyId, Entry, GuardPostId, Level, Projectile, TargetPriority } from "../engine/types.ts";
-import type { GameAudio } from "../platform/audio.ts";
+import { BOSS_MUSIC_THEMES, type BossMusicTheme, type GameAudio } from "../platform/audio.ts";
+import type { GameAnalytics } from "../platform/analytics.ts";
 import type { SaveStore } from "../platform/save.ts";
 import { createBattleRenderer } from "../render/battlefield.ts";
 import type { SceneryReaction } from "../render/battle-details.ts";
@@ -49,10 +50,14 @@ interface MenuOption {
 export function mountBattle(
   save: SaveStore,
   audio: GameAudio,
+  analytics: GameAnalytics,
   onExit: (id: string, note?: string) => void,
+  onStageCleared?: (stageId: string) => void,
+  onBossMusic?: (theme: BossMusicTheme | null) => void,
 ) {
   const viewport = mountBattleViewport();
   let game: DefenseGame;
+  let stageStartedAt = 0;
   let renderBattle: ReturnType<typeof createBattleRenderer>;
   let weather: WeatherPlan;
   let devices: ReturnType<typeof mountBattleDevices> | undefined;
@@ -82,6 +87,12 @@ export function mountBattle(
   let resultShown = false,
     flashTimer: number | undefined;
   let bossStatus = "";
+  let activeBossTheme: BossMusicTheme | null = null;
+  function syncBossMusic(next: BossMusicTheme | null) {
+    if (next === activeBossTheme) return;
+    activeBossTheme = next;
+    onBossMusic?.(next);
+  }
   const heard = new WeakSet<Effect | Projectile>();
   const announcedMinibosses = new WeakSet<Enemy>();
   const announcedBosses = new WeakSet<Enemy>();
@@ -122,9 +133,14 @@ export function mountBattle(
   }
 
   function open(level: Level, loadout?: readonly BuildingId[]) {
-    game = new DefenseGame(level, loadout);
+    game = new DefenseGame(level, loadout, save.snapshot.talents);
     introductions = newlyIntroduced(level.id);
     weather = battleWeather(level);
+    stageStartedAt = performance.now();
+    analytics.logEvent("stage_start", {
+      stage_id: level.id, chapter: level.chapter, biome: level.biome ?? "unknown",
+      weather: weatherAtWave(weather, 1) ?? weather.initial,
+    });
     renderBattle = createBattleRenderer($("battlefield"), game, weather);
     drawPostcard($("battle-art"), level.chapter, level.biome, Boolean(level.bridgeDeck));
     running = true;
@@ -172,6 +188,7 @@ export function mountBattle(
     $("game-view").classList.toggle("marsh-scene", marsh);
     $("game-view").classList.toggle("mire-scene", level.biome === "mire" || level.biome === "mire-edge");
     bossStatus = "";
+    activeBossTheme = null;
     revealView("game-view");
     reset();
     draw();
@@ -242,6 +259,9 @@ export function mountBattle(
     const index = selected;
     if (index === null) return;
     if (!game.build(index, type)) return;
+    analytics.logEvent("tower_build", {
+      stage_id: game.level.id, tower_id: type, tier: 1,
+    });
     closeMenu(true);
     notify((isGuardPostId(type) ? GUARD_BUILDINGS[type].name : TOWERS[type].name) + "已建成");
     audio.play("build");
@@ -278,6 +298,10 @@ export function mountBattle(
     if (index === null) return;
     const building = game.buildingAt(index);
     if (!building || !game.upgrade(index, path)) return;
+    analytics.logEvent("tower_upgrade", {
+      stage_id: game.level.id, tower_id: building.type, tier: building.tier,
+      action: path ? "specialize" : "upgrade",
+    });
     const name = isGuardPost(building)
       ? (building.branch ? GUARD_BRANCHES[building.branch].name : GUARD_BUILDINGS[building.type].name)
       : (building.path ? TOWERS[building.type].paths[building.path].name : TOWERS[building.type].name);
@@ -299,6 +323,7 @@ export function mountBattle(
     if (!running || !foreground || game.ended) return;
     game.paused = !game.paused;
     resetFrameTime();
+    audio.setAmbiencePaused(game.paused);
     if (game.paused) audio.suspend();
     else void audio.resume().catch(() => {});
     sync();
@@ -316,6 +341,9 @@ export function mountBattle(
     closeMenu();
     viewport.reset();
     game.reset();
+    syncBossMusic(null);
+    audio.setAmbiencePaused(false);
+    if (foreground) void audio.resume().catch(() => {});
     readDiscoveries.clear();
     shownGold = shownWave = undefined;
     shownWeather = undefined;
@@ -846,6 +874,8 @@ export function mountBattle(
     const boss = game.enemies.find(
       (enemy) => ENEMIES[enemy.type].boss && !enemy.escaped,
     );
+    const bossTheme = boss && !game.ended ? (BOSS_MUSIC_THEMES[boss.type] ?? null) : null;
+    syncBossMusic(bossTheme);
     const percent =
       boss && !game.ended
         ? Math.max(1, Math.ceil((boss.hp * 100) / boss.maxHp))
@@ -864,6 +894,11 @@ export function mountBattle(
       state = phase === "windup" ? "抬闸蓄潮 · 撤出预警带"
         : phase === "open" ? "闸背敞开 · 集中火力"
         : boss.mireFractured ? "溃口并流 · 注意两路" : "闸背闭合 · 突围即败";
+    }
+    if (boss?.type === "mire-matriarch") {
+      const supplied = mireBloomSupply(boss, game.enemies).length;
+      state = boss.mireCast ? "腐冠鼓囊 · 孢囊将破土"
+        : supplied ? `孢囊供养 ×${supplied} · 优先破囊` : "供养断绝 · 集火毒母";
     }
     const status = boss?.type + "/" + percent + "/" + state;
     if (status === bossStatus) return;
@@ -893,6 +928,7 @@ export function mountBattle(
       else if (enemy.hp >= 110) tags.push("中生命");
       else tags.push("轻型");
       if (type === "spider-egg") tags.push("可摧毁卵囊");
+      else if (type === "spore-pod") tags.push("可摧毁孢囊");
       else tags.push(enemy.speed >= 2.1 ? "极快" : enemy.speed >= 1.45 ? "较快" : enemy.speed >= 1.0 ? "适中" : "缓慢");
       if (enemy.armored) tags.push("重甲");
       if (enemy.slowResistance) tags.push("抗寒");
@@ -982,12 +1018,15 @@ export function mountBattle(
     const indicator = $("battle-weather");
     if (shownWeather !== weatherId) {
       indicator.textContent = weatherPreset.label;
-      indicator.title = weatherPreset.label + " · " + weatherPreset.desc;
+      indicator.title = weatherPreset.label + " · " + weatherPreset.desc +
+        (weatherPreset.effectSummary ? `（${weatherPreset.effectSummary}）` : "");
       indicator.dataset.severity = weatherPreset.severity;
       indicator.style.setProperty("--weather-accent", weatherPreset.accent);
-      game.weatherTowerRate = weatherPreset.towerRate ?? 1;
+      game.applyWeather(weatherPreset);
       if (shownWeather !== undefined) {
         if (weatherPreset.cue) audio.playWeather(weatherPreset.cue);
+        if (weatherPreset.severity === "severe" && weatherPreset.effectSummary)
+          notify(`${weatherPreset.label} · ${weatherPreset.effectSummary}`, false, true);
       }
       shownWeather = weatherId;
     }
@@ -1082,7 +1121,16 @@ export function mountBattle(
       closeMenu();
       $("restart-dialog").close();
       const stars = won ? rateBattle(game.level, game.health) : 0;
-      if (stars) save.recordClear(game.level.id, stars);
+      analytics.logEvent("stage_result", {
+        stage_id: game.level.id, chapter: game.level.chapter, biome: game.level.biome ?? "unknown",
+        weather: weatherAtWave(weather, game.wave) ?? weather.initial, result: won ? "win" : "loss",
+        stars, health: game.health, wave: game.wave,
+        duration_seconds: Math.max(0, Math.round((performance.now() - stageStartedAt) / 1000)),
+      });
+      if (stars) {
+        save.recordClear(game.level.id, stars);
+        onStageCleared?.(game.level.id);
+      }
       $("result-stars").hidden = !stars;
       $("result-stars").textContent = stars ? starsText(stars) : "";
       $("result-stars").setAttribute("aria-label", won ? stars + " 星" : "");
@@ -1168,6 +1216,7 @@ export function mountBattle(
         shot.kind === "prism" ? "frost-fire"
           : shot.kind === "hail-mortar" ? "hail-fire"
           : shot.kind === "salt-caster" ? "salt-fire"
+          : shot.kind === "spore-caster" ? "spore-fire"
           : shot.kind === "glaze-lance" ? "glaze-fire"
           : shot.kind === "guard-spear" || shot.kind === "net" || shot.kind === "net-capture" ? "arrow-fire"
           : `${shot.kind}-fire`,
@@ -1182,14 +1231,26 @@ export function mountBattle(
           audio.play(game.breachingBoss ? "boss-breach" : "breach");
           break;
         case "enemy-rally":
-          audio.play("reed-whistle", pan(effect.x));
+          if (effect.enemy === "pine-boar" || effect.enemy === "frost-yeti")
+            audio.playBossSkill("miniboss-enter", pan(effect.x));
+          else audio.play("reed-whistle", pan(effect.x));
           break;
-        case "enemy-ward":
-          audio.play("owl-bell", pan(effect.x));
+        case "enemy-ward": {
+          const caster = effect.enemy ? ENEMIES[effect.enemy] : undefined;
+          if (caster?.boss || caster?.miniboss) audio.playBossSkill("boss-ward", pan(effect.x));
+          else if (effect.enemy === "mire-treant") audio.play("step-bark", pan(effect.x));
+          else if (effect.enemy === "mirror-shrimp") audio.play("net-capture", pan(effect.x));
+          else if (effect.enemy === "snowbrush-fox") audio.play("step-wing", pan(effect.x));
+          else if (effect.enemy === "bloat-sporer") audio.play("poison-burst", pan(effect.x));
+          else audio.play("owl-bell", pan(effect.x));
           break;
-        case "enemy-windup":
-          audio.play("charge-windup", pan(effect.x));
+        }
+        case "enemy-windup": {
+          const caster = effect.enemy ? ENEMIES[effect.enemy] : undefined;
+          if (caster?.boss || caster?.miniboss) audio.playBossSkill("boss-windup", pan(effect.x));
+          else audio.play("charge-windup", pan(effect.x));
           break;
+        }
         case "enemy-expose":
           audio.play(effect.enemy === "weir-turtle" ? "weir-shell-open"
             : effect.enemy === "guard" ? "shell-crack" : "core-expose", pan(effect.x));
@@ -1205,19 +1266,19 @@ export function mountBattle(
           break;
         case "enemy-burrow-in":
         case "enemy-burrow-out":
-          audio.play("step-bark", pan(effect.x));
+          audio.play(effect.enemy === "mire-croc" ? "step-frog" : "step-bark", pan(effect.x));
           break;
         case "enemy-vent":
-          audio.play("cannon-hit", pan(effect.x));
+          audio.playBossSkill("miniboss-vent", pan(effect.x));
           break;
         case "enemy-vent-stop":
           audio.play("shell-crack", pan(effect.x));
           break;
         case "enemy-quill-launch":
-          audio.play("arrow-fire", pan(effect.x));
+          audio.play(effect.enemy === "vine-viper" ? "spore-fire" : "frost-fire", pan(effect.x));
           break;
         case "enemy-quill-impact":
-          audio.play("frost-hit", pan(effect.x));
+          audio.play(effect.enemy === "vine-viper" ? "spore-hit" : "frost-hit", pan(effect.x));
           break;
         case "tower-freeze":
           audio.play("freeze-lock", pan(effect.x));
@@ -1259,33 +1320,66 @@ export function mountBattle(
           audio.play("salt-hit", pan(effect.x));
           if (effect.enemy) audio.play(materialCue(effect.enemy, effect.airborne), pan(effect.x));
           break;
+        case "spore-caster":
+          audio.play("spore-hit", pan(effect.x));
+          if (effect.enemy) audio.play(materialCue(effect.enemy, effect.airborne), pan(effect.x));
+          break;
+        case "spore-burst":
+          audio.play("poison-burst", pan(effect.x));
+          break;
+        case "spore-spread":
+          audio.play("spore-hit", pan(effect.x));
+          break;
         case "burn-ignite":
           audio.play("burn-ignite", pan(effect.x));
           break;
         case "mire-tide-warning":
+          audio.playBossSkill("boss-tide-warn", pan(effect.x));
+          break;
         case "mire-tide-break":
-          audio.play("shell-crack", pan(effect.x));
+          audio.playBossSkill("boss-tide-break", pan(effect.x));
           break;
         case "mire-tide":
+          audio.playBossSkill("boss-tide-surge", pan(effect.x));
+          break;
         case "mire-drag":
+          audio.playBossSkill("miniboss-drag", pan(effect.x));
+          break;
         case "weir-surge":
           audio.play("weir-surge", pan(effect.x));
           break;
         case "rail-impact":
-        case "chief-cleave":
-        case "antler-sweep":
-        case "mammoth-quake":
           audio.play("cannon-hit", pan(effect.x));
+          break;
+        case "chief-cleave":
+          audio.playBossSkill("boss-cleave", pan(effect.x));
+          break;
+        case "antler-sweep":
+          audio.playBossSkill("boss-antler-sweep", pan(effect.x));
+          break;
+        case "mammoth-quake":
+          audio.playBossSkill("miniboss-quake", pan(effect.x));
           break;
         case "mire-blast":
           audio.play("poison-burst", pan(effect.x));
           break;
         case "mire-shell-warning":
+          audio.playBossSkill("miniboss-clam-clamp", pan(effect.x));
+          break;
         case "mire-shell":
-          audio.play("shell-crack", pan(effect.x));
+          audio.playBossSkill("miniboss-clam-open", pan(effect.x));
           break;
         case "mire-hatch":
           audio.play("hatch-crack", pan(effect.x));
+          break;
+        case "mire-summon":
+          if (effect.enemy === "mire-elder") audio.play("hatch-crack", pan(effect.x));
+          break;
+        case "mire-bloom":
+          audio.playBossSkill("boss-ward", pan(effect.x));
+          break;
+        case "mire-bloom-burst":
+          audio.play("poison-burst", pan(effect.x));
           break;
         case "mire-brace":
           audio.play("reed-brace", pan(effect.x));
@@ -1337,6 +1431,7 @@ export function mountBattle(
         }
         if (!spec.miniboss || announcedMinibosses.has(enemy)) continue;
         announcedMinibosses.add(enemy);
+        audio.playBossSkill("miniboss-enter");
         notify(`⚠ 小领主逼近 · ${spec.name}`, false, true);
       }
     }
@@ -1351,12 +1446,14 @@ export function mountBattle(
   }
   function stopBattle() {
     running = false;
+    activeBossTheme = null;
     closeMenu();
     for (const dialog of document.querySelectorAll<HTMLDialogElement>(
       "dialog[open]",
     ))
       dialog.close();
     stopAnimation();
+    audio.setAmbiencePaused(false);
     audio.suspend();
     clearTimeout(flashTimer);
   }
@@ -1469,12 +1566,19 @@ export function mountBattle(
       foreground = active;
       if (!active) {
         stopAnimation();
+        audio.setAmbiencePaused(true);
         audio.suspend();
         if (running && !game.ended) {
           game.paused = true;
           sync();
         }
-      } else startAnimation();
+      } else {
+        if (running) {
+          viewport.refresh();
+          draw();
+        }
+        startAnimation();
+      }
     },
   };
 }

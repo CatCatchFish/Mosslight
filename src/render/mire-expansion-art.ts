@@ -3,13 +3,14 @@ import type { Rect, Shape } from "./pixel-sprite.ts";
 
 export type View = "front" | "side" | "back";
 export type OtterPose = "idle" | "walk" | "brace" | "windup" | "strike";
+export type OtterIdle = "none" | "blink" | "sniff" | "flick" | "scan" | "check-paddle" | "tail-lift" | "tail-slap" | "splash";
 export type EnemyAttackPhase = "windup" | "strike";
 export interface ArtOptions {
   gate?: number;
   fractured?: boolean;
   attack?: EnemyAttackPhase;
   attackStep?: number;
-  otter?: { tier?: number; branch?: string; pose?: OtterPose };
+  otter?: { tier?: number; branch?: string; pose?: OtterPose; idle?: OtterIdle };
 }
 type Palette = readonly [shade: string, mid: string, light: string];
 export type Painter = (art: Art, view: View, skill: boolean) => void;
@@ -25,7 +26,7 @@ export interface Art {
   readonly fractured?: boolean;
   readonly attack?: EnemyAttackPhase;
   readonly attackStep?: number;
-  readonly otter?: { tier?: number; branch?: string; pose?: OtterPose };
+  readonly otter?: ArtOptions["otter"];
   p: Shape;
   r: Rect;
   fill(color: Palette, points: readonly Point[], shade?: number): void;
@@ -446,219 +447,259 @@ export const lanternMoth: Painter = ({ r, p, trace, frame, attack }, view, skill
 
 export const whiskerCatfish: Painter = ({ r, p, trace, frame, live, attack }, view, skill) => {
   const side = view === "side", back = view === "back";
-  const out = "#1c2b2e";
-  const skinDeep = "#243d44", skinMid = "#3d666b", skinLight = "#6e9894", skinRim = "#a5ccc0";
-  const bellyDeep = "#9e8e74", bellyMid = "#d9c6a0", bellyHi = "#f5e8ca";
-  const woodDeep = "#453328", woodMid = "#7c5c40", woodLight = "#b38a5e", woodRim = "#d9b482";
-  const mossMid = "#5c8049", mossLight = "#98b86a";
-  const bronzeMid = "#c99a52", bronzeHi = "#ffe69e";
+  const out = "#172a2c";
+  const skinDeep = "#243e40", skinMid = "#486764", skinLight = "#789184", skinRim = "#afc3a0";
+  const bellyDeep = "#8d8064", bellyMid = "#c5b58c", bellyHi = "#e9dfba";
+  const algaeDeep = "#3d5b3d", algaeMid = "#6f8d4e", algaeLight = "#b0c875";
+  const mudDeep = "#31433d", mudLight = "#607260";
+  const whiskerDeep = "#6d634a", whiskerLight = "#d8c78e", glow = "#f1e6a1";
   const f = ((frame % 8) + 8) % 8;
   const windup = attack === "windup", striking = attack === "strike";
-  const lunge = windup ? -3 : striking ? 4 : 0;
-  const x = (side ? -2 : 0) + lunge;
+  const lunge = side ? (windup ? -.5 : striking ? 3.5 : 0) : 0;
+  const flex = live || windup || striking ? Math.sin(f * Math.PI / 4) * 2.2 : 0;
 
-  // 1. Muscular forked catfish tail + heavy mud-speckled body (8-frame undulating swim/crawl)
   if (side) {
-    const flex = live || windup || striking ? Math.sin((f * Math.PI) / 4) * 3.0 + (windup ? -2 : 0) : 0;
-    p(out,
-      [-29 + lunge, -13 + flex], [-27.5 + lunge, -27 + flex], [-19 + lunge, -24 + flex * 0.6], [-15 + lunge, -16],
-      [-4 + lunge, -22], [11 + lunge, -22], [22 + lunge, -16], [26.5 + lunge, -9], [23 + lunge, -2], [11 + lunge, 1], [-8 + lunge, 1],
-      [-20 + lunge, -3], [-27 + lunge, -7 + flex * 0.6]);
-    p(skinDeep,
-      [-27.2 + lunge, -13 + flex], [-26 + lunge, -25 + flex], [-18.5 + lunge, -22.5 + flex * 0.6], [-14.5 + lunge, -15],
-      [-4 + lunge, -20.5], [10.5 + lunge, -20.5], [20.5 + lunge, -15], [24.8 + lunge, -9], [21.5 + lunge, -3.5], [10.5 + lunge, -0.5], [-8 + lunge, -0.5],
-      [-19.5 + lunge, -4.5], [-25.5 + lunge, -8 + flex * 0.6]);
-    p(skinMid,
-      [-25.5 + lunge, -13.5 + flex], [-24.5 + lunge, -23.5 + flex], [-18 + lunge, -21.5 + flex * 0.6], [-14 + lunge, -14.5],
-      [-3.5 + lunge, -20], [10 + lunge, -20], [19.5 + lunge, -14.5], [23 + lunge, -9.5], [19.5 + lunge, -5.5], [5 + lunge, -5], [-13 + lunge, -6], [-23 + lunge, -9.5 + flex * 0.6]);
-    p(skinLight, [-12 + lunge, -16], [-3 + lunge, -19.5], [9 + lunge, -19.5], [17 + lunge, -14.5], [12 + lunge, -11.5], [-5 + lunge, -12]);
-    r(-3 + lunge, -18.5, 11, 1.4, skinRim);
-    for (const dy of [-22, -17.5, -12.5]) trace([[-25 + lunge, dy + flex], [-17 + lunge, -14]], skinLight, 1.0);
-    for (const [mx, my] of [[-12, -10], [-4, -13], [4, -9], [-8, -6]]) r(x + mx, my, 2.8, 1.8, skinDeep);
-    p(bellyDeep, [-4 + lunge, -4.5], [20 + lunge, -5], [22.5 + lunge, -7.5], [19.5 + lunge, -3.5], [9 + lunge, -1], [-4 + lunge, -1]);
-    p(bellyMid, [-2 + lunge, -4.8], [19 + lunge, -5.2], [21 + lunge, -7], [17 + lunge, -4], [8 + lunge, -2.2], [-2 + lunge, -2.5]);
+    p(out, [-17 + lunge, -14], [-22 + lunge, -16 + flex], [-27 + lunge, -23 + flex],
+      [-24 + lunge, -15 + flex], [-21 + lunge, -10 + flex], [-24 + lunge, -5 + flex],
+      [-27 + lunge, 1 + flex], [-21 + lunge, -5 + flex], [-15 + lunge, -6]);
+    p(skinDeep, [-17.5 + lunge, -13.5], [-21.5 + lunge, -15.5 + flex], [-25.5 + lunge, -21 + flex],
+      [-23 + lunge, -15 + flex], [-21 + lunge, -10 + flex], [-23 + lunge, -5.5 + flex],
+      [-25.5 + lunge, -.5 + flex], [-21 + lunge, -6 + flex], [-16 + lunge, -7.5]);
+    trace([[-25 + lunge, -20 + flex], [-22 + lunge, -15 + flex], [-20 + lunge, -10 + flex]], skinLight, .9);
+    trace([[-20 + lunge, -10 + flex], [-22 + lunge, -5 + flex], [-25 + lunge, -1 + flex]], skinLight, .9);
+    p(out, [-18 + lunge, -14], [-10 + lunge, -20], [3 + lunge, -21], [15 + lunge, -17],
+      [22 + lunge, -11], [24 + lunge, -6], [20 + lunge, 0], [5 + lunge, 2], [-12 + lunge, 1], [-21 + lunge, -5]);
+    p(skinDeep, [-18 + lunge, -13], [-10 + lunge, -18.5], [3 + lunge, -19.5], [14 + lunge, -16],
+      [20.5 + lunge, -10.5], [22 + lunge, -7], [18.5 + lunge, -1.5], [5 + lunge, .3], [-11 + lunge, -.5], [-19 + lunge, -5.5]);
+    p(skinMid, [-16 + lunge, -14], [-8 + lunge, -19], [3 + lunge, -20], [13 + lunge, -16],
+      [19 + lunge, -11], [20 + lunge, -8], [16 + lunge, -4], [-7 + lunge, -3], [-17 + lunge, -7]);
+    p(skinLight, [-11 + lunge, -16], [-4 + lunge, -19], [5 + lunge, -18], [12 + lunge, -14.5],
+      [6 + lunge, -12], [-6 + lunge, -13]);
+    p(bellyDeep, [-7 + lunge, -4], [14 + lunge, -5], [21 + lunge, -7], [18 + lunge, -2], [4 + lunge, .5], [-9 + lunge, -.5]);
+    p(bellyMid, [-3 + lunge, -4], [14 + lunge, -5], [19 + lunge, -7], [15 + lunge, -4], [3 + lunge, -2]);
+    r(-2 + lunge, -20, 9, 1.2, skinRim);
+    p(out, [-8 + lunge, -21], [-3 + lunge, -27], [3 + lunge, -26], [8 + lunge, -20]);
+    p(algaeDeep, [-6 + lunge, -21], [-2.5 + lunge, -25], [2 + lunge, -24], [5 + lunge, -21]);
+    trace([[-4 + lunge, -22], [0 + lunge, -25], [4 + lunge, -22]], algaeMid, 1.2);
+    p(out, [5 + lunge, -10], [11 + lunge, -15], [17 + lunge, -4], [10 + lunge, 0]);
+    p(skinLight, [7 + lunge, -10], [10 + lunge, -13], [15 + lunge, -5], [11 + lunge, -1]);
     if (striking) {
-      p(out, [12 + lunge, -9], [26 + lunge, -10], [25 + lunge, -2], [12 + lunge, -3]);
-    } else {
-      trace([[5 + lunge, -6.5], [24.5 + lunge, -6.5]], out, 1.7);
+      p(out, [7 + lunge, -10], [14 + lunge, -13], [24 + lunge, -6], [20 + lunge, -1], [11 + lunge, -2]);
+      p(skinRim, [9 + lunge, -10], [14 + lunge, -11], [21 + lunge, -6], [19 + lunge, -3]);
     }
-    r(7 + lunge, -9.2, 11, 1.2, skinRim);
+    trace([[7 + lunge, -18], [5 + lunge, -12], [8 + lunge, -6]], out, 1.6);
+    trace([[8 + lunge, -17], [7 + lunge, -12], [9 + lunge, -7]], skinLight, .9);
+    for (const [mx, my, w] of [[-14, -13, 4], [-7, -18, 3], [-3, -9, 5], [4, -16, 2.5], [14, -15, 3]]) {
+      r(mx + lunge, my, w, 1.5, skinDeep);
+      r(mx + lunge + 1, my - .4, w - 1, .7, skinLight);
+    }
+    for (const [mx, my, w] of [[-14, -3, 5], [-6, -1, 4], [1, -2, 3], [12, -3, 4]]) r(mx + lunge, my, w, 1.6, mudDeep);
+    r(-11 + lunge, -2.5, 8, .8, mudLight);
   } else {
+    p(out, [-23, -10], [-20, -20], [-9, -24], [8, -24], [20, -20], [24, -9],
+      [19, 0], [7, 2], [-7, 2], [-19, 0]);
+    p(skinDeep, [-21.5, -10], [-18.5, -19], [-8, -22.5], [7.5, -22.5], [18.5, -19], [22, -9],
+      [17.5, -1.5], [6.5, .5], [-6.5, .5], [-17.5, -1.5]);
+    p(skinMid, [-20, -10], [-17, -19], [-7, -22], [7, -22], [17, -19], [20.5, -10],
+      [16, -3], [5.5, -2], [-5.5, -2], [-16, -3]);
+    p(skinLight, [-13, -15], [-6, -21], [5, -21], [11, -16], [4, -13], [-8, -13]);
     if (back) {
-      p(out, [-12, -19], [-3, -25], [9, -19], [14, -9], [8, 0], [-4, -2], [-12, 0]);
-      p(skinMid, [-10.5, -18.5], [-3, -23], [7.8, -18], [12, -9], [7, -1.5], [-4, -3.5], [-10.5, -1.5]);
-      trace([[-7, -17], [5, -11]], skinLight, 1.2);
+      p(out, [-8, -23], [-3, -31], [4, -30], [9, -22]);
+      p(algaeDeep, [-6, -23], [-2, -29], [3, -28], [6, -23]);
+      trace([[-3, -24], [0, -29], [4, -24]], algaeMid, 1.1);
+      for (const dx of [-13, -5, 5, 13]) trace([[dx, -17], [dx * .75, -7]], skinLight, .8);
+      p(algaeMid, [-18, -15], [-22, -20], [-20, -10], [-17, -8]);
+      p(algaeLight, [-17, -16], [-20, -19], [-18.5, -12]);
+      r(-6, -6, 12, 2, mudDeep);
+      return;
     }
-    p(out, [-24, -10], [-20, -21], [-8, -24], [8, -24], [20, -21], [24, -10], [18, -1], [6, 1.5], [-6, 1.5], [-18, -1]);
-    p(skinDeep, [-22.5, -10], [-18.5, -19.5], [-7.5, -22.5], [7.5, -22.5], [18.5, -19.5], [22.5, -10], [17, -2.5], [5.5, 0], [-5.5, 0], [-17, -2.5]);
-    p(skinMid, [-21.5, -10.5], [-17.5, -19], [-7, -22], [7, -22], [17.5, -19], [21, -10.5], [15, -4.5], [4, -3], [-5, -3], [-15, -4.5]);
-    p(skinLight, [-15, -15], [-7, -21], [5, -21], [11, -16], [2, -13], [-10, -13]);
-    if (!back) {
-      p(bellyMid, [-14, -5.5], [-7, -8.5], [7, -8.5], [14, -5.5], [9, -1.5], [-9, -1.5]);
-      r(-7, -7.8, 12, 1.3, bellyHi);
-      trace([[-12, -6.8], [12, -6.8]], out, 1.8);
+    p(bellyDeep, [-14, -6], [-7, -9], [7, -9], [14, -6], [10, -1], [-10, -1]);
+    p(bellyMid, [-11, -6], [-6, -8], [6, -8], [11, -6], [7, -3], [-7, -3]);
+    r(-6, -7.5, 12, 1, bellyHi);
+    for (const dx of [-16, 16]) {
+      p(out, [dx - 3, -10], [dx, -14], [dx + 4, -5], [dx, -1]);
+      p(skinLight, [dx - 1, -10], [dx, -12], [dx + 2, -5], [dx, -2]);
     }
   }
 
-  // 2. Weathered sunken-boat timber rib-hull lashed across its back
-  const hullY = -21;
-  trace([[x - 18, hullY + 3], [x - 6, hullY - 3.5], [x + 8, hullY - 2.5], [x + 15, hullY + 2]], out, 5.8);
-  trace([[x - 18, hullY + 3], [x - 6, hullY - 3.5], [x + 8, hullY - 2.5], [x + 15, hullY + 2]], woodMid, 3.4);
-  trace([[x - 16, hullY + 2], [x - 5, hullY - 4], [x + 7, hullY - 3]], woodRim, 1.2);
-  for (let i = 0; i < 4; i++) {
-    const rx = x - 13.5 + i * 7.5;
-    const hTop = -28.5 - (i % 2) * 1.5;
-    p(out, [rx - 3.5, -15], [rx - 2.8, hTop + 1.5], [rx + 1.8, hTop], [rx + 4, -24.5], [rx + 2.8, -15]);
-    p(woodDeep, [rx - 2.2, -16], [rx - 1.6, hTop + 2.2], [rx + 1.4, hTop + 1.2], [rx + 2.8, -24.5], [rx + 1.8, -16]);
-    p(woodMid, [rx - 2, -16.5], [rx - 1.4, hTop + 2.5], [rx + 0.8, hTop + 1.6], [rx + 1.5, -24.5], [rx + 0.5, -16.5]);
-    r(rx - 1.4, hTop + 2.5, 2.2, 2, woodRim);
-    r(rx - 0.5, -19.5, 1.8, 1.8, out);
-  }
-  trace([[x - 16, -17], [x - 2, -19], [x + 13, -16]], out, 2.6);
-  trace([[x - 16, -17], [x - 2, -19], [x + 13, -16]], bellyMid, 1.2);
-  p(mossMid, [x - 11, -27.5], [x - 5, -29], [x - 2.5, -23], [x - 9, -21.5]);
-  r(x - 9, -27, 4, 1.6, mossLight);
+  const headX = side ? 12 + lunge : 0;
+  p(out, [headX - (side ? 7 : 13), -19], [headX + (side ? 6 : 12), -18],
+    [headX + (side ? 12 : 15), -10], [headX + (side ? 9 : 11), -4],
+    [headX - (side ? 7 : 11), -4]);
+  p(skinMid, [headX - (side ? 6 : 11), -18], [headX + (side ? 5 : 10), -17],
+    [headX + (side ? 10 : 13), -10], [headX + (side ? 7 : 9), -5],
+    [headX - (side ? 5 : 9), -5]);
+  p(skinLight, [headX - (side ? 5 : 9), -17], [headX + (side ? 3 : 7), -16],
+    [headX + (side ? 7 : 10), -11], [headX - (side ? 5 : 7), -10]);
 
-  if (back) {
-    r(-4, -19, 8, 9.5, woodMid);
-    r(-2, -18, 3.5, 6.5, woodRim);
-    return;
+  if (back) return;
+
+  const eyeY = -16.2;
+  for (const ex of side ? [headX + 2.5] : [headX - 6.5, headX + 3.5]) {
+    r(ex - 1.2, eyeY - .8, 4.2, 3.8, out);
+    r(ex, eyeY, 2.7, 2.1, skill || striking ? glow : "#e8c875");
+    r(ex + .4, eyeY - .2, 1, 1, "#fff6d8");
+  }
+  trace([[headX - (side ? 3 : 9), eyeY - 1.2], [headX + (side ? 6 : 8), eyeY - 1.5]], skinDeep, 1.6);
+  r(headX + (side ? 7.5 : -1), -11, side ? 1.8 : 2, 1.2, out);
+
+  if (side) {
+    p(out, [headX + 7, -9], [headX + 14, -8], [headX + 15, -5], [headX + 9, -3], [headX + 6, -5]);
+    p(bellyDeep, [headX + 8, -8], [headX + 13, -7], [headX + 13.5, -5.5], [headX + 8, -4.5]);
+    trace([[headX + 8, -6.2], [headX + 13, -6.2]], out, 1.2);
+    r(headX + 10, -6.8, 3, .7, bellyHi);
+  } else {
+    p(out, [-10, -8], [-6, -10], [6, -10], [10, -8], [7, -4], [4, -2], [-4, -2], [-7, -4]);
+    p(bellyDeep, [-8, -7], [-5, -8.5], [5, -8.5], [8, -7], [5, -4], [-5, -4]);
+    trace([[-7, -6], [7, -6]], out, 1.5);
+    r(-3, -6.8, 6, .8, bellyHi);
   }
 
-  // 3. Fierce amber catfish eyes & heavy brow ridge
-  const hx = (side ? 12 : 0) + lunge;
-  for (const ex of side ? [hx + 3.5] : [hx - 6.5, hx + 3.5]) {
-    r(ex - 0.8, -16.8, 4.0, 3.8, out);
-    r(ex, -16, 2.5, 2.3, skill || striking ? "#fff4cc" : amber);
-    r(ex + 0.4, -15.8, 1.1, 1.1, "#ffffff");
-  }
-  r(hx + (side ? 1.5 : -7.5), -18.2, side ? 6.5 : 15, 1.4, skinDeep);
-
-  // 4. Forked bronze-gold whip whiskers (coiled back in windup, lashing forward with golden arc in strike!)
   for (const d of [-1, 1]) {
-    const startX = hx + (side ? 4 + d * 3 : d * 9);
-    const endX = side
-      ? (windup ? (d < 0 ? -12 : 12) : striking ? (d < 0 ? 16 : 36) : d < 0 ? -7 : 34)
-      : d * (skill || striking ? 28 : 22);
-    const endY = windup ? -14 + d * 3 : striking ? -10 + d * 5 : skill ? -1 + d * 2 : -1.5 + d * 0.6;
-    const midX = startX + (endX - startX) * 0.56;
-    const midY = windup ? -13 + d * 2 : striking ? -14 + d * 2 : skill ? -6.5 + d * 2 : -4.5 + d * 3;
-    const mainPts: Point[] = [[startX, -7.2], [midX, midY], [endX, endY]];
-    trace(mainPts, out, 3.8);
-    trace(mainPts, skill || striking ? bronzeHi : bronzeMid, 1.8);
-    const forkEndX = midX + (endX - midX) * 0.56, forkEndY = midY + 4.8;
-    trace([[midX, midY], [forkEndX, forkEndY]], out, 2.6);
-    trace([[midX, midY], [forkEndX, forkEndY]], skill || striking ? "#fff4cc" : bellyHi, 1.1);
+    const startX = headX + (side ? 9 : d * 7);
+    const upperEndX = side ? (windup ? headX - 8 : d < 0 ? headX - 10 : headX + (skill || striking ? 17 : 13))
+      : d * (skill || striking ? 25 : 21);
+    const upperEndY = windup ? -12 + d * 2 : striking ? -11 + d * 4 : skill ? -5 + d * 2 : -2 + d * 2;
+    const upperMidX = startX + (upperEndX - startX) * .55;
+    const upperMidY = windup ? -10 : skill || striking ? -9 : -5;
+    const upper: Point[] = [[startX, -6.5], [upperMidX, upperMidY], [upperEndX, upperEndY]];
+    trace(upper, out, 3);
+    trace(upper, skill || striking ? glow : whiskerLight, 1.25);
+    const lowerEndX = side ? (d < 0 ? headX - 5 : headX + (skill || striking ? 12 : 9)) : d * 17;
+    const lower: Point[] = [[startX + d * 1.5, -5], [startX + (lowerEndX - startX) * .5, -.5], [lowerEndX, skill ? 2 : 3]];
+    trace(lower, out, 2.4);
+    trace(lower, whiskerDeep, 1);
     if (skill) {
-      trace([[startX, -5.2], [midX, midY - 2], [endX, endY - 1]], "#fff4cc", 1.1);
-      r(endX - 3, endY + 1.2, 5, 1.5, teal);
-      r(endX - 1, endY - 1.6, 2.2, 1.3, "#ffffff");
+      trace([[upperEndX - 1.5, upperEndY + 1], [upperEndX + 1.5, upperEndY - 1]], glow, 1);
+      r(upperEndX - 1, upperEndY - 1, 2, 1, "#ffffff");
     }
   }
   if (striking) {
-    trace([[hx + 10, -21], [hx + 23, -12], [hx + 18, -1]], bronzeHi, 2.4);
-    trace([[hx + 13, -18], [hx + 21, -11], [hx + 17, -3]], "#ffffff", 1.2);
+    trace([[headX + 8, -17], [headX + 19, -11], [headX + 16, -1]], glow, 1.8);
+    trace([[headX + 11, -15], [headX + 17, -10], [headX + 15, -5]], "#ffffff", .9);
   }
+
+  p(algaeMid, [headX - 8, -21], [headX - 5, -26], [headX - 2, -22], [headX - 4, -19]);
+  r(headX - 6, -24, 3, 1.2, algaeLight);
+  trace([[headX - 12, -20], [headX - 14, -26], [headX - 17, -27]], algaeMid, 1);
+  trace([[headX - 16, -23], [headX - 19, -23], [headX - 21, -21]], algaeLight, .8);
 };
 
 export const stoneClam: Painter = ({ r, p, trace, frame, attack }, view, skill) => {
   const side = view === "side", back = view === "back";
-  const out = "#2a1f30";
-  const mudDeep = "#243a3d", mudMid = "#416766", mudLight = "#78a397";
-  const shellDeep = "#3d2b47", shellMid = "#694c73", shellLight = "#9c7ba3", shellRim = "#cfb3cc";
-  const mossDeep = "#344d33", mossMid = "#5f854b", mossLight = "#9ebd6d";
-  const bronzeDeep = "#523e2c", bronzeMid = "#947044", bronzeLight = "#deb46a";
-  const pearlDeep = "#d9923b", pearlMid = "#f7cc65", pearlLight = "#ffefa6";
+  const out = "#1c2b2d";
+  const mudDeep = "#263b38", mudMid = "#46645b", mudLight = "#77917a";
+  const shellDeep = "#354a49", shellMid = "#607875", shellLight = "#93a79a", shellRim = "#c9d1ad";
+  const algaeDeep = "#38543a", algaeMid = "#68884a", algaeLight = "#b1c975";
+  const mantleDeep = "#77806a", mantleMid = "#b4bd91", mantleLight = "#e1dbb0";
+  const pearlDeep = "#b99b45", pearlMid = "#ead477", pearlLight = "#fff3b0";
   const f = ((frame % 8) + 8) % 8;
   const windup = attack === "windup", striking = attack === "strike";
-  const shake = windup ? (f % 2 ? 1.5 : -1.5) : 0;
-  const x = (side ? -2 : 0) + shake;
+  const shake = windup ? (f % 2 ? 1 : -1) : 0;
+  const x = (side ? -1 : 0) + shake;
+  const breath = [0, .15, .35, .55, .4, .2, .05, 0][f];
+  const open = skill ? 1 : windup ? .48 : striking ? .06 : breath * .08;
 
-  p(out, [x - 24, -4], [x - 20, -12], [x + 20, -12], [x + 25, -4], [x + 19, 2.5], [x - 17, 2.5]);
-  p(mudDeep, [x - 22.5, -4.5], [x - 18.5, -10.5], [x + 18.5, -10.5], [x + 23.5, -4.5], [x + 18, 1], [x - 16, 1]);
-  p(mudMid, [x - 21, -5.5], [x - 17.5, -10], [x + 17.5, -10], [x + 21.5, -5.5], [x + 15, -1.5], [x - 14, -1.5]);
-  r(x - 16, -2.2, 32, 1.4, mudLight);
+  p(out, [-25 + x, -4], [-20 + x, -10], [17 + x, -10], [26 + x, -4], [20 + x, 2], [-16 + x, 2]);
+  p(mudDeep, [-23 + x, -4.5], [-18 + x, -9], [16 + x, -9], [24 + x, -4.5], [18 + x, .5], [-14 + x, .5]);
+  p(mudMid, [-21 + x, -5], [-16 + x, -8], [14 + x, -8], [22 + x, -5], [16 + x, -1.5], [-12 + x, -1.5]);
+  r(-17 + x, -2, 36, 1.1, mudLight);
+  for (const [mx, my, w] of [[-18, -4, 5], [-9, -1, 4], [2, -3, 6], [13, -1, 4], [20, -4, 3]]) r(mx + x, my, w, 1.3, mudDeep);
 
-  const lw = side ? 22 : 23;
-  p(out, [x - lw, -9], [x - lw + 2, -17], [x + lw - 2, -17], [x + lw, -9], [x + lw - 5, -1], [x - lw + 5, -1]);
-  p(shellDeep, [x - lw + 1.5, -9.5], [x - lw + 3, -15.5], [x + lw - 3, -15.5], [x + lw - 1.5, -9.5], [x + lw - 5.5, -2.5], [x - lw + 5.5, -2.5]);
-  p(shellMid, [x - lw + 2.5, -10], [x - lw + 3.5, -15], [x + lw - 4, -15], [x + lw - 3, -10], [x + lw - 7, -4.5], [x - lw + 7, -4.5]);
-  trace([[x - 18, -10.5], [x, -7.5], [x + 18, -10.5]], shellLight, 1.4);
+  const lowerWarp = (pts: Point[]) => side ? pts.map(([px, py]): Point => [px + x, py + (px + 8) * .045]) : pts.map(([px, py]): Point => [px + x, py]);
+  p(out, ...lowerWarp([[-24, -9], [-20, -16], [-11, -18], [0, -19], [11, -18], [21, -15], [24, -9], [19, -2], [10, 1], [-10, 1], [-20, -2]]));
+  p(shellDeep, ...lowerWarp([[-22.5, -9.5], [-18.5, -14.5], [-10, -16.5], [0, -17.5], [10, -16.5], [19.5, -13.5], [22, -9.5], [17, -3.5], [9, -.5], [-9, -.5], [-18, -3.5]]));
+  p(shellMid, ...lowerWarp([[-21, -10], [-17, -14], [-9, -15.5], [0, -16], [9, -15.5], [18, -13], [20.5, -10], [15.5, -5], [7, -3], [-7, -3], [-15.5, -5]]));
+  p(shellLight, ...lowerWarp([[-18, -12], [-10, -14.5], [0, -15], [9, -14], [15, -12], [7, -10], [-4, -11], [-13, -10]]));
+  for (const dx of [-16, -9, 0, 9, 16]) {
+    trace(lowerWarp([[dx * .75, -15], [dx, -10], [dx * 1.18, -5]]), shellDeep, 1.3);
+    trace(lowerWarp([[dx * .75 + 1, -14.5], [dx + 1, -9.5]]), shellRim, .65);
+  }
+  trace(lowerWarp([[-20, -9], [-10, -6], [0, -5.5], [11, -7], [21, -9]]), out, 1.4);
+  trace(lowerWarp([[-18, -9.5], [-9, -7.2], [0, -6.8], [10, -8], [18, -9.5]]), mantleMid, .9);
 
-  const opening = skill ? -12.5 : windup ? -5.5 : striking ? 2.2 : [0, 0.2, 0.6, 1.0, 0.8, 0.4, 0.1, 0][f];
+  const cavityWarp = (pts: Point[]) => side
+    ? pts.map(([px, py]): Point => [px + x, py + (px + 8) * .045])
+    : pts.map(([px, py]): Point => [px + x, py]);
+  const upperWarp = (pts: Point[]) => pts.map(([px, py]): Point => {
+    const [cx, cy] = cavityWarp([[px, py]])[0];
+    return side ? [cx, cy - Math.max(0, px + 19) * .55 * open] : [cx, cy - 12 * open];
+  });
 
   if ((skill || windup) && !back) {
-    p("#1c1524", [x - 19, -11], [x - 16, -27], [x - 7, -30], [x + 12, -26], [x + 20, -12], [x + 10, -5], [x - 12, -5]);
-    trace([[x - 16, -12], [x, -8.5], [x + 17, -12]], "#e0bc8d", 1.8);
-    trace([[x - 14, -23], [x, -26.5], [x + 14, -22]], shellRim, 1.2);
-  }
-
-  const rawTop: Point[] = [
-    [x - 23, -13], [x - 21, -25 + opening], [x - 13, -35 + opening], [-3 + x, -38 + opening], [8 + x, -37 + opening],
-    [x + 19, -30 + opening], [x + 24, -21 + opening], [x + 24, -13 + opening * 0.62],
-    [x + 16, -9.5 + opening * 0.62], [x + 3, -8.5 + opening * 0.62], [x - 13, -9.5 + opening * 0.62],
-  ];
-  const warp = (pts: Point[]) => side ? pts.map(([px, py]): Point => [px, py + (px + 6) * 0.11]) : pts;
-  const top = warp(rawTop);
-  p(out, ...top);
-  p(shellDeep, ...warp([
-    [x - 21.4, -13.5], [x - 19.5, -24.5 + opening], [x - 12, -33.5 + opening], [-3 + x, -36.4 + opening], [7.5 + x, -35.4 + opening],
-    [x + 17.8, -29 + opening], [x + 22.4, -20.8 + opening], [x + 22.4, -13.5 + opening * 0.62],
-    [x + 15.2, -10.8 + opening * 0.62], [x + 3, -10 + opening * 0.62], [x - 12.2, -10.8 + opening * 0.62],
-  ]));
-  p(shellMid, ...warp([
-    [x - 20.4, -14.5], [x - 18.5, -24.5 + opening], [x - 11.5, -33 + opening], [-3 + x, -35.8 + opening], [7 + x, -34.8 + opening],
-    [x + 16.5, -28.5 + opening], [x + 20.5, -20.5 + opening], [x + 18, -14 + opening * 0.62],
-    [x + 2, -12.5 + opening * 0.62], [x - 14, -13 + opening * 0.62],
-  ]));
-  p(shellLight, ...warp([
-    [x - 17, -23 + opening], [x - 11, -32.5 + opening], [-2 + x, -35.2 + opening], [6 + x, -34 + opening],
-    [9 + x, -27 + opening], [-1 + x, -23 + opening], [x - 14, -19 + opening * 0.8],
-  ]));
-
-  trace([[x - 18, -21.5 + opening * 0.85], [x, -25 + opening * 0.9], [x + 18, -20.5 + opening * 0.85]], shellDeep, 1.3);
-  trace([[x - 17, -20.3 + opening * 0.85], [x, -23.8 + opening * 0.9], [x + 17, -19.3 + opening * 0.85]], shellRim, 1.0);
-  for (const dx of [-13.5, -6, 3, 11.5]) {
-    trace([[x + dx * 0.7, -33.5 + opening], [x + dx * 1.12, -23.5 + opening], [x + dx * 1.42, -13 + opening * 0.65]], shellDeep, 1.8);
-    trace([[x + dx * 0.78, -32.5 + opening], [x + dx * 1.2, -23.5 + opening], [x + dx * 1.48, -13 + opening * 0.65]], shellRim, 0.95);
-  }
-  if (!skill && !back) trace([[x - 13, -11], [x + 13, -11]], windup || striking ? pearlLight : pearlMid, windup || striking ? 2.2 : 1.3);
-
-  p(out, [x - 18.5, -23.5 + opening], [x - 14, -32.5 + opening], [x - 6, -31.5 + opening], [x - 4.5, -25.5 + opening], [x - 10.5, -21 + opening]);
-  p(mossDeep, [x - 17, -24 + opening], [x - 13.2, -31.2 + opening], [x - 6.8, -30.5 + opening], [x - 5.8, -25.8 + opening], [x - 10.5, -22.2 + opening]);
-  p(mossMid, [x - 16.2, -25 + opening], [x - 13, -30.8 + opening], [x - 7.5, -30 + opening], [x - 7, -26.5 + opening], [x - 11.5, -24 + opening]);
-  r(x - 13.5, -29.5 + opening, 4.5, 2, mossLight);
-  r(x - 9.5, -23.5 + opening, 2.2, 4.2, mossMid);
-  p(mossMid, [x + 9, -30.5 + opening], [x + 14.5, -29.5 + opening], [x + 15.5, -25 + opening], [x + 10.5, -26 + opening]);
-
-  if (back) {
-    p(out, [x - 7.5, -16.5 + opening * 0.6], [x + 7.5, -16.5 + opening * 0.6], [x + 8.5, -9.5 + opening * 0.6], [x - 8.5, -9.5 + opening * 0.6]);
-    p(bronzeMid, [x - 6, -15 + opening * 0.6], [x + 6, -15 + opening * 0.6], [x + 6.8, -11 + opening * 0.6], [x - 6.8, -11 + opening * 0.6]);
-    r(x - 4.5, -14 + opening * 0.6, 2.2, 2.2, bronzeLight);
-    r(x + 2.3, -14 + opening * 0.6, 2.2, 2.2, bronzeLight);
-    r(x - 5, -12, 10, 1.2, bronzeDeep);
-  }
-
-  if (striking) {
-    // Crushing slam shockwave ring & stone shards bursting forward from shell clamp!
-    trace([[x + 16, -21], [x + 28, -11], [x + 23, 0]], pearlLight, 2.6);
-    trace([[x + 18, -18], [x + 26, -10], [x + 22, -2]], "#ffffff", 1.2);
-    for (const [sx, sy] of [[x + 21, -16], [x + 27, -7], [x + 24, 1], [x - 24, -4]]) {
-      r(sx, sy, 2.8, 1.8, pearlMid);
+    p(out, ...cavityWarp([[-21, -10], [-18, -23], [-10, -29], [3, -30], [16, -24], [21, -12], [15, -8], [-9, -8]]));
+    p("#172e2d", ...cavityWarp([[-19, -11], [-16, -21], [-8, -26], [2, -27], [14, -22], [18, -12], [12, -10], [-8, -10]]));
+    trace(cavityWarp([[-17, -11], [-8, -9], [4, -10], [16, -12]]), mantleMid, 2);
+    trace(cavityWarp([[-15, -12], [-7, -10], [5, -11], [13, -13]]), mantleLight, .8);
+    if (side) {
+      p(out, ...cavityWarp([[12, -14], [15, -20], [18, -22], [21, -20], [20, -15], [17, -12]]));
+      p(mantleDeep, ...cavityWarp([[14, -15], [16, -19], [18, -20], [19, -18], [18, -15]]));
+      const siphon = cavityWarp([[18, -20]])[0];
+      r(siphon[0], siphon[1], 2, 1.2, out);
     }
   }
 
   if (skill && !back) {
-    const px = side ? 8 : 0, py = -12.5;
-    p("#f8c66f55", [px - 11, py - 8], [px + 11, py - 8], [px + 11, py + 8], [px - 11, py + 8]);
-    p(out, [px - 8, py - 1], [px - 6, py - 7.5], [px, py - 8.5], [px + 6, py - 7.5], [px + 8, py - 1], [px + 5.5, py + 6.5], [px, py + 7.8], [px - 5.5, py + 6.5]);
-    p(pearlDeep, [px - 6.6, py - 1], [px - 4.8, py - 6.2], [px, py - 7.2], [px + 4.8, py - 6.2], [px + 6.6, py - 1], [px + 4.5, py + 5.4], [px, py + 6.4], [px - 4.5, py + 5.4]);
-    p(pearlMid, [px - 5.8, py - 1.5], [px - 4.2, py - 5.8], [px, py - 6.6], [px + 4.2, py - 5.8], [px + 5.2, py - 1.5], [px + 3, py + 4], [px - 3.5, py + 4]);
-    p(pearlLight, [px - 4.2, py - 2.5], [px - 2.8, py - 5.4], [px + 2, py - 5.4], [px + 3, py - 2.5], [px, py + 1], [px - 3, py + 0.5]);
-    r(px - 2.8, py - 4.2, 3.4, 2.8, "#ffffff");
-    for (const [sx, sy] of [[18, -15], [23, -10.5], [26, -6], [20, -5], [28, -12.5]]) {
-      r(sx, sy, 2.6, 1.6, pearlLight);
-      r(sx + 1, sy - 1, 1.3, 1.2, "#ffffff");
+    const px = side ? 5 + x : x, py = -14.5;
+    p("#f3d67a44", [px - 10, py - 7], [px + 10, py - 7], [px + 10, py + 7], [px - 10, py + 7]);
+    p(out, [px - 6, py - 1], [px - 4.5, py - 6], [px, py - 7.5], [px + 4.5, py - 6], [px + 6, py - 1], [px + 4, py + 5], [px, py + 6.5], [px - 4, py + 5]);
+    p(pearlDeep, [px - 5, py - 1], [px - 3.5, py - 5], [px, py - 6.5], [px + 3.5, py - 5], [px + 5, py - 1], [px + 3.5, py + 4], [px, py + 5.5], [px - 3.5, py + 4]);
+    p(pearlMid, [px - 4, py - 1.5], [px - 2.8, py - 4.5], [px + 1.5, py - 5.5], [px + 4, py - 1.5], [px + 2.5, py + 3], [px - 2.5, py + 3]);
+    p(pearlLight,
+      [px - 3, py - 2], [px - 1.5, py - 4], [px + 2, py - 4],
+      [px + 2.5, py - 2], [px, py + .5], [px - 2, py]);
+    r(px - 2.5, py - 3.5, 3, 2.2, "#ffffff");
+  }
+
+  const topShape: Point[] = side
+    ? [[-24, -11], [-23, -18], [-17, -28], [-7, -34], [4, -35], [15, -30], [22, -22], [25, -13], [18, -9], [3, -8], [-10, -9]]
+    : [[-24, -12], [-22, -23], [-16, -32], [-7, -37], [2, -39], [11, -36], [19, -30], [24, -21], [25, -12], [17, -9], [5, -8], [-7, -9], [-17, -10]];
+  p(out, ...upperWarp(topShape));
+  p(shellDeep, ...upperWarp(side
+    ? [[-22, -12], [-21, -18], [-15.5, -26.5], [-6.5, -32.5], [3.5, -33.5], [13.5, -28.5], [20.5, -21], [23, -13], [16.5, -11], [2, -10], [-10, -11]]
+    : [[-22, -12.5], [-20, -22.5], [-14.5, -31], [-6.5, -35.5], [1.5, -37.5], [10, -34.5], [17.5, -29], [22, -21], [23, -12.5], [16, -10.5], [5, -9.5], [-7, -10.5], [-16, -11.5]]));
+  p(shellMid, ...upperWarp(side
+    ? [[-20.5, -13], [-19, -18.5], [-14, -25.5], [-6, -31], [3, -32], [12.5, -27.5], [19, -20.5], [21, -13.5], [15, -12.5], [2, -11.5], [-10, -12.5]]
+    : [[-20, -13], [-18, -22], [-13, -30], [-5.5, -34.5], [1, -36], [9, -33.5], [16, -28], [20.5, -20.5], [21, -13], [15, -11.5], [5, -10.5], [-7, -11.5], [-15, -12.5]]));
+  p(shellLight, ...upperWarp(side
+    ? [[-17, -20], [-12, -28], [-5, -31], [3, -30.5], [10, -26], [4, -23], [-7, -24], [-14, -20]]
+    : [[-14, -25], [-9, -33], [-2, -36], [6, -34.5], [12, -29], [7, -25], [-3, -27], [-11, -23]]));
+
+  for (let i = 0; i < 3; i++) {
+    const spread = 18 - i * 3;
+    trace(upperWarp([[-spread, -15 - i * 3], [-spread * .45, -20 - i * 4.5], [0, -22 - i * 4.5], [spread * .55, -19 - i * 3.5], [spread, -14 - i * 2]]), i % 2 ? shellDeep : shellRim, i % 2 ? 1 : .65);
+  }
+  for (const dx of [-15, -8, 0, 8, 15]) {
+    trace(upperWarp([[dx * .45, -35], [dx * .8, -25], [dx * 1.2, -13]]), shellDeep, 1.15);
+    trace(upperWarp([[dx * .45 + .8, -34], [dx * .8 + .8, -24.5], [dx * 1.2 + .8, -13]]), shellRim, .55);
+  }
+  trace(upperWarp(side ? [[25, -13], [18, -9], [3, -8], [-10, -9]] : [[25, -12], [17, -9], [5, -8], [-7, -9], [-17, -10]]), out, 2.8);
+  trace(upperWarp(side ? [[24, -14], [17, -10], [3, -9], [-10, -10]] : [[24, -13], [16, -10], [5, -9], [-7, -10], [-16, -11]]), shellRim, 1.3);
+
+  p(algaeDeep, ...upperWarp([[-19, -22], [-17, -30], [-10, -33], [-7, -28], [-10, -22]]));
+  p(algaeMid, ...upperWarp([[-17, -23], [-15.5, -29], [-11, -31.5], [-9, -27], [-11.5, -23]]));
+  r(-14 + x, -29 - (side ? 0 : open * 7), 4, 1.4, algaeLight);
+  p(algaeMid, ...upperWarp([[10, -29], [15, -29], [17, -25], [12, -24]]));
+  if (side) {
+    r(-23 + x, -13, 7, 5, out);
+    r(-22 + x, -12, 5, 3, shellDeep);
+    r(-21.5 + x, -11.5, 3, 1, shellRim);
+  }
+  if (back) {
+    trace(upperWarp([[-13, -18], [-5, -23], [5, -23], [13, -18]]), shellDeep, 1.2);
+    p(out, ...upperWarp([[-6, -15], [6, -15], [7, -10], [-7, -10]]));
+    p(shellRim, ...upperWarp([[-4.5, -14], [4.5, -14], [5, -11], [-5, -11]]));
+    r(-3 + x, -13.5 - open * 3, 2, 1.5, shellDeep);
+    r(1 + x, -13.5 - open * 3, 2, 1.5, shellDeep);
+    p(algaeMid, ...upperWarp([[-20, -13], [-23, -20], [-20, -23], [-17, -16]]));
+  }
+
+  if (striking) {
+    trace([[x + 17, -18], [x + 28, -11], [x + 23, -1]], pearlLight, 2.2);
+    trace([[x + 19, -16], [x + 25, -10], [x + 22, -4]], "#ffffff", .9);
+    for (const [sx, sy] of [[x + 22, -17], [x + 29, -8], [x + 26, 0], [x - 24, -4]]) {
+      p(out, [sx - 2, sy + 1], [sx - 1, sy - 2], [sx + 2, sy - 1], [sx + 2, sy + 1]);
+      r(sx, sy - 1, 2, 1.2, pearlMid);
     }
   }
 };
@@ -946,214 +987,341 @@ export const reedSpiderling: Painter = ({ r, p, trace, frame, attack }, view, sk
 
 export const sluiceDragon: Painter = ({ r, p, trace, frame, live, gate, fractured, attack }, view, skill) => {
   const side = view === "side", back = view === "back";
-  const out = "#17272a";
-  const scaleDeep = "#20383d", scaleMid = "#395e61", scaleLight = "#65918a", scaleRim = "#9ecab9";
-  const boneDeep = "#7d6854", boneMid = "#c9ae82", boneLight = "#ede0b8", boneHi = "#fff7de";
-  const antlerDeep = "#402f23", antlerMid = "#78583c", antlerLight = "#b88d5c";
-  const bronzeDeep = "#3c3026", bronzeMid = "#7f6241", bronzeLight = "#c79d5e", bronzeHi = "#f7dc8e";
-  const mossDeep = "#304a33", mossMid = "#587d47", mossLight = "#98b86b";
-  const tideDeep = "#367d75", tideMid = "#6ec4b4", tideHi = "#c8fff0";
+  const out = "#112326";
+  const scaleDeep = "#1b343a", scaleMid = "#375b5e", scaleLight = "#6c928b", scaleRim = "#a9c9b3";
+  const mudDeep = "#3c4939", mudMid = "#657454", mudLight = "#9caa70";
+  const boneDeep = "#78624f", boneMid = "#c7aa7f", boneLight = "#eee0b7", boneHi = "#fff8dc";
+  const bronzeDeep = "#352b24", bronzeMid = "#795c3d", bronzeLight = "#c39a59", bronzeHi = "#f5d681";
+  const mossDeep = "#2d4734", mossMid = "#557849", mossLight = "#9ab96c";
+  const tideDeep = "#286d69", tideMid = "#54b7aa", tideHi = "#c5fff0";
+  const mouthDeep = "#321f28", gum = "#925647";
   const f = ((frame % 8) + 8) % 8;
   const windup = attack === "windup", striking = attack === "strike";
   const open = gate ?? Number(skill);
-  const bob = live ? Math.sin((f * Math.PI) / 4) * 1.1 : 0;
+  const bob = live ? Math.sin((f * Math.PI) / 4) * .9 : 0;
+  const jaw = open > .2 || striking ? 5 : windup ? 2.5 : 0;
 
-  if (side) {
-    const tailWave = live ? Math.sin((f * Math.PI) / 4) * 2.0 : 0;
-    for (const dx of [-13, 12]) {
-      p(out, [dx - 5, -10], [dx + 3, -10], [dx + 6, -3], [dx + 4, 2], [dx - 6, 2], [dx - 7, -3]);
-      p(scaleDeep, [dx - 3.8, -9], [dx + 2, -9], [dx + 4.5, -3], [dx + 3, 0.5], [dx - 4.5, 0.5]);
-      r(dx + 1, -1.5, 2.2, 2.2, boneMid);
+  const drawLeg = (x: number, rear: boolean, far = false) => {
+    const spread = rear ? 6.2 : 7.4;
+    const phase = (f * Math.PI) / 4 + (rear ? 0 : Math.PI) + (far ? Math.PI : 0);
+    const walking = live && !windup && !striking;
+    const stride = walking ? Math.sin(phase) * 2.2 : 0;
+    const lift = walking ? Math.max(0, Math.cos(phase)) * 1.7 : 0;
+    const depth = far ? -1.6 : 0;
+    const kneeY = -6 - lift * .45 + depth;
+    const footY = 1 - lift + depth;
+    const hide = far ? scaleDeep : scaleMid;
+    const light = far ? scaleMid : scaleLight;
+    p(out, [x - 5, -14 + depth], [x + 4, -14 + depth], [x + spread + 1 + stride, kneeY],
+      [x + spread + 3 + stride, footY + 1], [x + spread - 1 + stride, footY + 2.4],
+      [x - spread + stride, footY + 1.6], [x - spread - 2 + stride, kneeY + 1]);
+    p(hide, [x - 3.7, -12.8 + depth], [x + 2.8, -12.8 + depth], [x + spread + stride, kneeY + .5],
+      [x + spread + 1.8 + stride, footY + .3], [x + spread - .8 + stride, footY + 1.2],
+      [x - spread + .5 + stride, footY + .7], [x - spread - .5 + stride, kneeY + .5]);
+    p(light, [x - 2.8, -11.8 + depth], [x + 1.8, -11.8 + depth], [x + spread - .8 + stride, kneeY + 1],
+      [x + spread + stride, footY - .3], [x - 3.5, footY - .6]);
+    p(out, [x + spread - 3.5 + stride, kneeY - 2.5], [x + spread + 1.5 + stride, kneeY - 2],
+      [x + spread + 2.5 + stride, kneeY + 1.5], [x + spread - 1.5 + stride, kneeY + 2.5]);
+    p(far ? scaleMid : scaleRim, [x + spread - 2.5 + stride, kneeY - 1.5],
+      [x + spread + .8 + stride, kneeY - 1.2], [x + spread + 1.2 + stride, kneeY + .5]);
+    r(x - 2.3, -12.2 + depth, 4.2, 1.2, far ? scaleMid : scaleRim);
+    for (const cx of [-spread + 1, -.8, spread - 2]) {
+      p(out, [x + cx + stride - 1, footY - .4], [x + cx + stride + 1.2, footY - .6],
+        [x + cx + stride + 2, footY + 1.5], [x + cx + stride - .4, footY + 1.9]);
+      p(boneHi, [x + cx + stride - .5, footY + .1], [x + cx + stride + .8, footY],
+        [x + cx + stride + 1.2, footY + .9], [x + cx + stride, footY + 1.1]);
     }
-
-    p(out,
-      [-28, -9 + tailWave], [-26, -18 + tailWave], [-19, -17 + tailWave * 0.6], [-14, -14],
-      [-7, -23 + bob], [5, -26 + bob], [18, -22 + bob], [22, -13 + bob],
-      [15, -5 + bob], [4, -4 + bob], [-7, 1], [-17, 2.5], [-25, -2 + tailWave * 0.5], [-28.5, -6 + tailWave]);
-    p(scaleDeep,
-      [-26.5, -9.5 + tailWave], [-24.5, -16.5 + tailWave], [-18.5, -15.5 + tailWave * 0.6], [-13.5, -13],
-      [-6.5, -21.5 + bob], [5, -24.5 + bob], [16.8, -20.8 + bob], [20.5, -13 + bob],
-      [14, -6.5 + bob], [4, -5.5 + bob], [-7, -0.5], [-16.5, 1], [-24, -3 + tailWave * 0.5]);
-    p(scaleMid,
-      [-25, -10.5 + tailWave], [-23.5, -15.5 + tailWave], [-18, -14.8 + tailWave * 0.6], [-13, -12.8],
-      [-6, -21 + bob], [5, -23.8 + bob], [16, -20 + bob], [19, -13.5 + bob],
-      [11.5, -8.5 + bob], [1, -8 + bob], [-11, -3.5], [-21, -5 + tailWave * 0.5]);
-    p(scaleLight, [-12, -16 + bob], [-4, -21 + bob], [6, -23 + bob], [14, -19 + bob], [9, -15 + bob], [-5, -13 + bob]);
-    for (const [sx, baseY] of [[-19, -10], [-11, -12], [-2, -14.5], [7, -14.5]]) {
-      const sy = baseY + bob + (live ? Math.sin((f * Math.PI) / 4 + sx * 0.24) * 1.4 : 0);
-      p(scaleDeep, [sx - 3.2, sy - 4], [sx + 3.2, sy - 5], [sx + 4.2, sy + 2], [sx - 2.2, sy + 3]);
-      p(scaleMid, [sx - 2.5, sy - 3.5], [sx + 2.5, sy - 4.4], [sx + 3.2, sy + 1], [sx - 1.5, sy + 2]);
-      r(sx - 2, sy - 4, 4.5, 1.4, scaleRim);
-    }
-    p("#a3b58c", [-22, -3.5], [-13, -2], [-4, -6], [-4, -3], [-14, 1], [-22, 0]);
-    trace([[-25, -13 + tailWave], [-19, -15 + tailWave * 0.6], [-13, -13]], tideMid, 1.3);
-  } else {
-    p(out, [-25, -16 + bob], [-21, -28 + bob], [0, -32 + bob], [21, -28 + bob], [25, -16 + bob], [20, -4], [-20, -4]);
-    p(scaleDeep, [-23.5, -16 + bob], [-19.5, -26.5 + bob], [0, -30.5 + bob], [19.5, -26.5 + bob], [23.5, -16 + bob], [18.5, -5.5], [-18.5, -5.5]);
-    p(scaleMid, [-22, -16.5 + bob], [-18.5, -26 + bob], [0, -29.8 + bob], [18.5, -26 + bob], [22, -16.5 + bob], [16, -8], [-16, -8]);
-    p(scaleLight, [-17, -21 + bob], [-11, -27 + bob], [7, -28 + bob], [13, -22 + bob], [0, -18 + bob]);
-    for (const d of [-1, 1]) {
-      r(d * 14.5, -21.5 + bob, 5.5, 2, scaleRim);
-      r(d * 15.5, -16.5 + bob, 5.5, 2, scaleDeep);
-    }
-    if (back) {
-      p(out, [-7, -20], [7, -20], [9, -9], [7, -1], [11, 4], [5, 7], [-3, 5], [-7, -3], [-9, -11]);
-      p(scaleDeep, [-5.5, -19], [5.5, -19], [7.5, -9], [5.5, -1.5], [9, 3.2], [4.5, 5.5], [-2, 3.8], [-5.5, -3], [-7.5, -11]);
-      p(scaleMid, [-4.5, -18.5], [4.5, -18.5], [6, -9], [4.5, -2], [7, 2.8], [4, 4.5], [-1.5, 3], [-4.5, -3.5]);
-      for (const ty of [-16, -11, -6, -1]) r(-1.8, ty, 3.6, 2.2, scaleRim);
-    }
-  }
-
-  const drawStrap = (sx: number, sy: number) => {
-    p(out, [sx - 3.6, sy - 10], [sx + 3.6, sy - 10], [sx + 5, sy - 1], [sx + 2.2, sy + 5], [sx - 4, sy + 3]);
-    p(bronzeDeep, [sx - 2.4, sy - 9], [sx + 2.4, sy - 9], [sx + 3.8, sy - 1], [sx + 1.2, sy + 3.8], [sx - 2.6, sy + 2]);
-    p(bronzeMid, [sx - 2, sy - 8.5], [sx + 1.8, sy - 8.5], [sx + 2.8, sy - 1.5], [sx + 0.5, sy + 2.5], [sx - 2, sy + 1.5]);
-    r(sx - 1.1, sy - 7, 2.4, 2.4, skill ? tideHi : bronzeHi);
-    r(sx - 0.6, sy - 1, 2.2, 1.6, bronzeLight);
   };
-  for (const sx of fractured ? (side ? [-8, 1] : [13]) : (side ? [-16, -8, 1] : [-15, 13])) {
-    drawStrap(sx, (side ? -13.5 : -14.5) + bob);
+
+  if (side) {
+    const tailWave = live ? Math.sin((f * Math.PI) / 4) * 2.2 : 0;
+
+    p(out, [-11, -10], [-15, -11 + tailWave * .3], [-19, -10 + tailWave * .5], [-22, -8 + tailWave * .6],
+      [-25, -5 + tailWave * .7], [-27, -3 + tailWave * .7], [-26, -1 + tailWave * .7], [-24, 0 + tailWave * .65],
+      [-27, 2 + tailWave * .6], [-25, 3 + tailWave * .55], [-22, 2 + tailWave * .5],
+      [-18, 1 + tailWave * .4], [-14, -1 + tailWave * .3], [-11, -4]);
+    p(scaleDeep, [-12, -8], [-15, -9 + tailWave * .3], [-19, -8.5 + tailWave * .5], [-21.5, -6.5 + tailWave * .6], [-24.5, -4 + tailWave * .7],
+      [-25.5, -2.5 + tailWave * .7], [-24, -1 + tailWave * .65], [-25.5, 1.5 + tailWave * .6], [-24, 2 + tailWave * .55], [-21, 1 + tailWave * .5], [-17, .5 + tailWave * .4], [-12, -1 + tailWave * .3], [-12, -3]);
+    p(scaleMid, [-12, -7], [-15, -7.5 + tailWave * .3], [-19, -6.5 + tailWave * .5], [-21.5, -4.5 + tailWave * .6], [-24, -2 + tailWave * .7],
+      [-24, -.5 + tailWave * .7], [-23, 1 + tailWave * .65], [-18, -.5 + tailWave * .4], [-12, -3], [-12, -4]);
+    p(scaleLight, [-25, -4 + tailWave * .7], [-22, -6 + tailWave * .6], [-18, -7.5 + tailWave * .5], [-14, -4 + tailWave * .4],
+      [-12, 0], [-17, -1 + tailWave * .4], [-21, -2 + tailWave * .6], [-24, -2 + tailWave * .7]);
+    p(scaleRim, [-25, -4 + tailWave * .7], [-22, -6 + tailWave * .6], [-18, -7.5 + tailWave * .5], [-14, -4 + tailWave * .4],
+      [-15, 0 + tailWave * .4], [-18, -1 + tailWave * .5], [-22, -2 + tailWave * .6]);
+    p(out, [-23, -6 + tailWave * .6], [-26, -11 + tailWave * .7], [-20, -8 + tailWave * .5]);
+    p(boneDeep, [-23.5, -7 + tailWave * .6], [-25.5, -10.5 + tailWave * .7], [-21, -9 + tailWave * .5]);
+    p(boneLight, [-24.5, -8 + tailWave * .7], [-25, -10 + tailWave * .7], [-23.5, -9 + tailWave * .6]);
+    p(out, [-17, -8 + tailWave * .5], [-20, -13 + tailWave * .6], [-14, -10 + tailWave * .4]);
+    p(boneMid, [-17.5, -9 + tailWave * .5], [-19.5, -12 + tailWave * .6], [-15, -10.5 + tailWave * .4]);
+    trace([[-25, 1 + tailWave * .6], [-21, -1 + tailWave * .5], [-13, -4]], tideMid, 1.2);
+
+    drawLeg(-12, true, true);
+    drawLeg(15, false, true);
+
+    p(out, [-15, -8 + tailWave * .3], [-16, -22 + bob], [-13, -33 + bob], [7, -35 + bob],
+      [27, -35 + bob], [32, -24 + bob], [32, -14 + bob], [21, -6 + bob], [4, -4 + bob], [-14, 1], [-15, 1.5], [-16, -2 + tailWave * .3]);
+    p(scaleDeep, [-14, -8 + tailWave * .3], [-15, -20.5 + bob], [-12, -31.5 + bob], [7, -33.5 + bob],
+      [25.5, -33.5 + bob], [30, -23.5 + bob], [30, -14 + bob], [20, -7.5 + bob], [3, -5.8 + bob], [-14, -.5], [-14, .5], [-15, -2 + tailWave * .3]);
+    p(scaleMid, [-14, -9 + tailWave * .3], [-14, -20 + bob], [-12, -30.5 + bob], [7, -32.5 + bob],
+      [24.5, -32.5 + bob], [28, -24 + bob], [28, -16 + bob], [19, -10 + bob], [2, -8 + bob], [-14, -2.5], [-15, -1], [-16, -3]);
+    p(scaleLight, [-7, -24 + bob], [-2, -29 + bob], [6, -29.8 + bob], [22, -26 + bob],
+      [11, -22 + bob], [-4, -20.5 + bob]);
+    p(mudMid, [-15, -3], [-7, -1], [1, -7], [13, -8 + bob], [20, -5 + bob], [-2, -2], [-5, 1], [-16, -.5]);
+    p(mudLight, [-12, -2], [-7, -.5], [-3, -4], [-7, -1]);
+    p(scaleLight, [-26, -3 + tailWave * .7], [-22, -6 + tailWave * .6], [-18, -7 + tailWave * .5], [-16, -1],
+      [-16, 1 + tailWave * .4], [-21, 0 + tailWave * .6], [-24, 0 + tailWave * .7]);
+    p(mudLight, [-24, 0 + tailWave * .7], [-20, -1 + tailWave * .5], [-16, 0], [-17, 2 + tailWave * .4], [-23, 2 + tailWave * .5]);
+    trace([[-26, -3 + tailWave * .7], [-22, -6 + tailWave * .6], [-18, -7 + tailWave * .5], [-16, -1]], scaleRim, 1.4);
+    trace([[-16, -7], [-15, -3], [-16, 1]], out, 1.8);
+    for (const [tx, ty, size] of [[-24, -4.5, 2.8], [-21, -5.8, 3.2], [-18, -6.2, 3]]) {
+      const y = ty + tailWave * .6;
+      p(out, [tx - size, y + 1], [tx, y - 1.8], [tx + size, y + .5], [tx, y + 2]);
+      p(scaleMid, [tx - size + .6, y + .6], [tx, y - 1], [tx + size - .6, y + .2], [tx, y + 1.2]);
+      r(tx - .8, y - .7, 1.6, .8, scaleRim);
+    }
+    p(boneMid, [-27, tailWave * .6], [-24, .8 + tailWave * .5], [-25.5, 1 + tailWave * .5]);
+    p(mudLight, [-25, 3.5 + tailWave * .4], [-22.5, 2.7 + tailWave * .4], [-23, 3.4 + tailWave * .4]);
+    trace([[-24, 2 + tailWave * .5], [-20, 1.2 + tailWave * .4], [-17, .4 + tailWave * .3]], mudLight, 1);
+
+    for (const [sx, sy] of [[-11, -15], [-5, -18], [2, -21], [9, -20], [17, -17], [23, -14]]) {
+      const y = sy + bob;
+      p(out, [sx - 4, y - 3], [sx + 3, y - 5], [sx + 4.5, y + 1], [sx - 1, y + 3.5]);
+      p(scaleMid, [sx - 3, y - 2.5], [sx + 2.2, y - 4], [sx + 3.4, y], [sx - .8, y + 2.5]);
+      p(scaleRim, [sx - 2.5, y - 3.3], [sx + 1.8, y - 4], [sx + 2.8, y - 2.8], [sx - 1.8, y - 1.8]);
+      r(sx - 1.5, y - 2.4, 2.5, 1.1, mudLight);
+    }
+    for (const [sx, sy] of [[-15, -31], [-8, -34], [1, -35], [10, -34], [18, -31], [25, -27]]) {
+      const y = sy + bob;
+      p(out, [sx - 3, y + 4], [sx - 1, y - 6], [sx + 1, y - 9], [sx + 3.5, y + 3]);
+      p(boneDeep, [sx - 1.5, y + 2], [sx, y - 5], [sx + 1, y - 7], [sx + 2, y + 2]);
+      p(boneLight, [sx, y], [sx + .5, y - 4.5], [sx + 1, y - 5.5]);
+    }
+    trace([[-22, -7 + tailWave * .4], [-15, -9], [-6, -8], [1, -7]], tideDeep, 1.6);
+    trace([[-18, -5], [-11, -6], [-3, -5], [5, -5]], tideMid, 1.1);
+    drawLeg(-10, true);
+    drawLeg(20, false);
+  } else {
+    for (const d of [-1, 1]) {
+      p(out, [d * 13, -16], [d * 23, -14], [d * 27, -5], [d * 26, 1], [d * 16, 2], [d * 11, -5]);
+      p(scaleDeep, [d * 14, -14], [d * 22, -12], [d * 25, -5], [d * 24, -.5], [d * 16, .5], [d * 12.5, -5]);
+      p(scaleMid, [d * 15, -13], [d * 21, -11], [d * 23, -6], [d * 19, -4], [d * 14, -6]);
+      p(scaleLight, [d * 15, -12], [d * 20, -10.5], [d * 20, -8], [d * 15, -9]);
+      for (const cx of [17, 21, 24]) {
+        p(out, [d * (cx - 1), -.5], [d * (cx + 1), -.5], [d * (cx + 1.8), 2], [d * cx, 2.8]);
+        p(boneHi, [d * cx, 0], [d * (cx + 1), 0], [d * (cx + 1.2), 1.5]);
+      }
+    }
+
+    p(out, [-25, -17 + bob], [-21, -29 + bob], [-9, -34 + bob], [0, -35 + bob], [9, -34 + bob],
+      [21, -29 + bob], [25, -17 + bob], [20, -6], [12, -2], [-12, -2], [-20, -6]);
+    p(scaleDeep, [-23.5, -17 + bob], [-19.5, -27.5 + bob], [-8, -32.5 + bob], [0, -33.5 + bob],
+      [8, -32.5 + bob], [19.5, -27.5 + bob], [23.5, -17 + bob], [18.5, -7.5], [11, -3.5], [-11, -3.5], [-18.5, -7.5]);
+    p(scaleMid, [-21.5, -18 + bob], [-18, -27 + bob], [-7, -31.5 + bob], [0, -32.5 + bob],
+      [7, -31.5 + bob], [18, -27 + bob], [21.5, -18 + bob], [17, -9], [10, -5], [-10, -5], [-17, -9]);
+    p(scaleLight, [-17, -24 + bob], [-9, -31 + bob], [7, -31.5 + bob], [14, -25 + bob], [0, -20 + bob]);
+    p(mudMid, [-20, -9], [-12, -4], [0, -6], [12, -4], [20, -9], [17, -5], [9, -1.5], [-9, -1.5], [-17, -5]);
+
+    for (const d of [-1, 1]) {
+      for (const [x, y] of [[13, -27], [20, -22], [19, -15]]) {
+        p(out, [d * (x - 3), y + 4 + bob], [d * (x + 1), y - 7 + bob], [d * (x + 3), y + 3 + bob]);
+        p(boneDeep, [d * (x - 1), y + 2 + bob], [d * (x + .5), y - 5 + bob], [d * (x + 1.5), y + 2 + bob]);
+        p(boneLight, [d * x, y + bob], [d * (x + .5), y - 3.5 + bob]);
+      }
+      p(out, [d * 8, -24], [d * 16, -29], [d * 23, -23], [d * 20, -15], [d * 10, -14]);
+      p(scaleDeep, [d * 9.5, -23], [d * 16, -27], [d * 21.5, -22.5], [d * 18.5, -16.5], [d * 10.5, -15.5]);
+      p(scaleLight, [d * 11, -23], [d * 16, -26], [d * 19, -23], [d * 13, -19]);
+      r(d < 0 ? -18 : 13, -24 + bob, 5, 1.5, scaleRim);
+    }
+
+    if (back) {
+      p(out, [-7, -3], [7, -3], [10, 0], [9, 4], [6, 7], [3.5, 9], [1.5, 6], [-1.5, 6], [-3.5, 9], [-6, 7], [-9, 4], [-10, 0]);
+      p(scaleDeep, [-5.5, -2], [5.5, -2], [8, .5], [7, 3.5], [4.5, 6], [2.5, 7.5], [0, 5], [-2.5, 7.5], [-4.5, 6], [-7, 3.5], [-8, .5]);
+      p(scaleMid, [-4, -1], [4, -1], [6, 1], [5, 3], [3, 5], [1.5, 6], [0, 4], [-1.5, 6], [-3, 5], [-5, 3], [-6, 1]);
+      p(scaleLight, [-3, -.5], [3, -.5], [4, 1.5], [2.5, 3.5], [0, 4.5], [-2.5, 3.5], [-4, 1.5]);
+      for (const ty of [1, 4, 6]) {
+        p(out, [-5 + ty * .35, ty], [0, ty - 1.5], [5 - ty * .35, ty], [0, ty + 1.5]);
+        p(scaleRim, [-3.5 + ty * .25, ty], [0, ty - .8], [3.5 - ty * .25, ty], [0, ty + .8]);
+      }
+      for (const d of [-1, 1]) {
+        p(out, [d * 2, 2], [d * 5, -.5], [d * 6, 2]);
+        p(boneMid, [d * 2.5, 1.5], [d * 4.8, 0], [d * 5.2, 1.8]);
+        p(boneLight, [d * 3, .8], [d * 4.5, .3]);
+      }
+      trace([[0, -1], [0, 3], [0, 6]], tideDeep, 1.8);
+      trace([[-1, 1], [1, 3], [0, 5]], tideMid, 1.1);
+    }
   }
+
+  const gx = side ? -4 : 0;
+  const half = side ? 10 : 17;
+  const panelHalf = side ? 5.5 : 11;
+  const panelTop = -35 - Math.round(open * 16) + bob;
+  r(gx - half + 1, -36 + bob, half * 2 - 2, 16, out);
+  r(gx - half + 2.5, -34.5 + bob, half * 2 - 5, 13, "#16272a");
+  r(gx - half + 4, -32 + bob, half * 2 - 8, 9, open > .2 ? tideDeep : bronzeDeep);
+  if (open > .2) {
+    r(gx - half + 4, -27 + bob, half * 2 - 8, 4, tideMid);
+    r(gx - half + 6, -25.5 + bob, half * 2 - 12, 2, tideHi);
+    r(gx - 3, -25 + bob, 6, 1.2, "#ffffff");
+  }
+
+  r(gx - panelHalf - 1, panelTop - 1, panelHalf * 2 + 2, 14, out);
+  r(gx - panelHalf, panelTop, panelHalf * 2, 12, bronzeMid);
+  r(gx - panelHalf + 1, panelTop + 1, 2, 10, bronzeLight);
+  r(gx + panelHalf - 3, panelTop + 1, 2, 10, bronzeDeep);
+  for (const bx of [-panelHalf + 2.5, -1.2, panelHalf - 3.3]) {
+    r(gx + bx, panelTop, 2, 12, bronzeLight);
+    r(gx + bx, panelTop, .8, 12, bronzeHi);
+  }
+  r(gx - panelHalf, panelTop + 9, panelHalf * 2, 2, bronzeDeep);
+
+  for (const d of [-1, 1]) {
+    const px = gx + d * (half + .5);
+    r(px - 3, -52 + bob, 6, 34, out);
+    r(px - 2, -51 + bob, 4, 32, scaleDeep);
+    r(px - 1.5, -50 + bob, 1.5, 29, scaleLight);
+    r(px - 3.5, -43 + bob, 7, 4, bronzeDeep);
+    r(px - 3, -42.5 + bob, 6, 1.2, bronzeLight);
+    r(px - 3.5, -27 + bob, 7, 4, bronzeDeep);
+    r(px - 3, -26.5 + bob, 6, 1.2, bronzeLight);
+    r(px - 2.2, -49 + bob, 4.4, 4.4, out);
+    r(px - 1.4, -48.2 + bob, 2.8, 2.8, open > .2 || striking ? tideMid : bronzeHi);
+    r(px - .8, -47.6 + bob, 1.4, 1.4, "#ffffff");
+  }
+  r(gx - half - 4, -52 + bob, half * 2 + 8, 5, out);
+  r(gx - half - 3, -51 + bob, half * 2 + 6, 3, scaleMid);
+  r(gx - half - 2, -51 + bob, half * 2 + 4, 1, scaleRim);
+  p(mossDeep, [gx - half - 2, -51 + bob], [gx - half + 3, -52 + bob], [gx - half + 1, -47 + bob], [gx - half - 3, -48 + bob]);
+  p(mossMid, [gx - half - 1, -50.5 + bob], [gx - 2, -51.5 + bob], [gx - 3, -48 + bob], [gx - half, -48.5 + bob]);
+  r(gx - half, -50 + bob, 4, 1.2, mossLight);
+
   if (fractured) {
-    const fx = side ? -19 : -15;
-    trace([[fx - 3, -21], [fx, -14.5], [fx - 2, -10], [fx + 2.5, -6.5]], "#c96e4b", 2.6);
-    trace([[fx - 3, -20], [fx, -14.5], [fx - 2, -10]], "#ffe296", 1.1);
-  }
-
-  const gx = side ? -6.5 : 0;
-  const gTop = Math.round((side ? -42 : -45) * (1 - open) - 52 * open) + bob;
-  p(out,
-    [gx - 15.5, -20 + bob], [gx - 14.5, -36 + bob], [gx - 9.5, gTop], [gx + 9.5, gTop],
-    [gx + 14.5, -36 + bob], [gx + 15.5, -20 + bob], [gx + 9, -16 + bob], [gx - 9, -16 + bob]);
-  p(scaleDeep,
-    [gx - 14, -20.5 + bob], [gx - 13, -35 + bob], [gx - 8.5, gTop + 1.5], [gx + 8.5, gTop + 1.5],
-    [gx + 13, -35 + bob], [gx + 14, -20.5 + bob], [gx + 8, -17.5 + bob], [gx - 8, -17.5 + bob]);
-  p(scaleMid,
-    [gx - 13, -21.5 + bob], [gx - 12, -34.5 + bob], [gx - 8, gTop + 2], [gx + 8, gTop + 2],
-    [gx + 11.5, -34.5 + bob], [gx + 12, -21.5 + bob]);
-  trace([[gx - 11.5, -34.5 + bob], [gx - 7.5, gTop + 2.5], [gx + 7.5, gTop + 2.5], [gx + 11.5, -34.5 + bob]], bronzeLight, 2.2);
-  r(gx - 7, gTop + 2, 14, 1.8, bronzeHi);
-  p(mossDeep, [gx - 11.5, gTop + 2], [gx - 2, gTop + 1], [gx - 1, gTop + 7.5], [gx - 10, gTop + 7.5]);
-  p(mossMid, [gx - 10.5, gTop + 2.5], [gx - 3, gTop + 1.8], [gx - 2.5, gTop + 6], [gx - 9, gTop + 6]);
-  r(gx - 9, gTop + 3, 4.5, 1.6, mossLight);
-
-  const liftGate = -Math.round(open * 7);
-  r(gx - 8.5, -35.5 + bob, 17, 16, out);
-  r(gx - 6.8, -34.2 + bob, 13.6, 13.5, open > 0.2 ? tideDeep : bronzeDeep);
-  if (open > 0.2) {
-    r(gx - 6.8, -28 + bob, 13.6, 7.2, tideMid);
-    r(gx - 5, -26 + bob, 10, 3.6, tideHi);
-    r(gx - 3, -25.2 + bob, 6, 1.8, "#ffffff");
-  }
-  for (const bx of [gx - 4.4, gx - 0.9, gx + 2.6]) {
-    r(bx, -34.2 + bob + liftGate, 2.0, 12, open > 0.2 ? bronzeHi : bronzeLight);
-    r(bx, -34.2 + bob + liftGate, 0.9, 12, bronzeDeep);
-  }
-  for (const lx of [gx - 12.2, gx + 9.2]) {
-    r(lx - 0.8, -36.5 + bob, 4.6, 4.6, out);
-    r(lx, -35.7 + bob, 3.0, 3.0, open > 0.2 || striking ? tideMid : bronzeHi);
-    r(lx + 0.5, -35.3 + bob, 1.3, 1.3, "#ffffff");
+    const cx = gx - (side ? 2 : 7);
+    trace([[cx - 2, panelTop + 1], [cx + 1, panelTop + 5], [cx - 1, panelTop + 8], [cx + 2, panelTop + 11]], "#d4774d", 2.1);
+    trace([[cx - 2, panelTop + 1], [cx + 1, panelTop + 5], [cx - 1, panelTop + 8]], "#ffe19a", .9);
+    trace([[gx - half - 2, -43 + bob], [gx - half + 1, -38 + bob], [gx - half - 1, -32 + bob]], "#d4774d", 1.8);
   }
 
   if (side) {
-    const headShiftX = windup ? -3 : striking ? 4 : 0;
-    const headShiftY = windup ? -3.5 : striking ? 2.5 : 0;
-    const hx = 14.5 + headShiftX, hy = -28 + open * 2.5 + bob + headShiftY;
-    const sweep = open > 0.2 || windup ? -3.5 : 0;
-    const mainHorn: Point[] = [[hx - 5, hy - 4], [hx - 11.5 + sweep, hy - 16.5], [hx - 18 + sweep, hy - 23]];
-    trace(mainHorn, out, 4.8);
-    trace(mainHorn, antlerMid, 2.6);
-    trace([[hx - 5.5, hy - 4.5], [hx - 11.5 + sweep, hy - 16.5], [hx - 17.5 + sweep, hy - 22.5]], antlerLight, 1.0);
-    trace([[hx - 11.5 + sweep, hy - 16.5], [hx - 7 + sweep, hy - 23], [hx - 9.5 + sweep, hy - 26.5]], out, 3.8);
-    trace([[hx - 11.5 + sweep, hy - 16.5], [hx - 7 + sweep, hy - 23], [hx - 9.5 + sweep, hy - 26.5]], antlerLight, 1.8);
-    trace([[hx - 8 + sweep, hy - 11], [hx - 2.5 + sweep, hy - 16.5]], antlerLight, 1.6);
+    const hx = 15 + (windup ? -2 : 0);
+    const hy = -26 + open * 1.8 + bob + (windup ? -1 : striking ? 2.5 : 0);
+    const mainHorn: Point[] = [[hx - 7, hy - 5], [hx - 13, hy - 13], [hx - 12, hy - 18]];
+    trace(mainHorn, out, 5.2);
+    trace(mainHorn, boneMid, 2.8);
+    trace([[hx - 7.5, hy - 5], [hx - 12.5, hy - 12], [hx - 11.8, hy - 16.5]], boneLight, 1.1);
+    trace([[hx - 12, hy - 12], [hx - 18, hy - 15], [hx - 20, hy - 19]], out, 3.8);
+    trace([[hx - 12, hy - 12], [hx - 18, hy - 15], [hx - 19.5, hy - 18]], boneLight, 1.6);
+    trace([[hx - 3, hy - 9], [hx - 6, hy - 16], [hx - 4, hy - 18]], out, 3.8);
+    trace([[hx - 3, hy - 9], [hx - 5.5, hy - 15], [hx - 4, hy - 16.5]], boneMid, 1.8);
 
-    p(out, [hx - 13, hy - 3], [hx - 15, hy - 11], [hx - 7, hy - 11], [hx - 1.5, hy + 1], [hx - 4, hy + 13.5], [hx - 12, hy + 16.5]);
-    p(mossDeep, [hx - 11.5, hy - 3], [hx - 13.5, hy - 9.5], [hx - 7, hy - 9.5], [hx - 3, hy + 1], [hx - 5, hy + 12], [hx - 11, hy + 14.8]);
-    p(mossMid, [hx - 11, hy - 3.5], [hx - 12.5, hy - 9], [hx - 7.5, hy - 9], [hx - 4.5, hy + 1], [hx - 6.5, hy + 10], [hx - 10.5, hy + 12]);
-    r(hx - 11, hy - 6.5, 4.5, 2.2, mossLight);
+    p(out, [hx - 13, hy - 2], [hx - 15, hy - 10], [hx - 8, hy - 12], [hx - 1, hy - 1], [hx - 4, hy + 13], [hx - 12, hy + 16]);
+    p(scaleDeep, [hx - 11.5, hy - 2], [hx - 13.5, hy - 9], [hx - 8, hy - 10.5], [hx - 2.5, hy - 1], [hx - 5.5, hy + 11.5], [hx - 11, hy + 14.5]);
+    p(scaleMid, [hx - 10.5, hy - 3], [hx - 12, hy - 8], [hx - 8, hy - 9], [hx - 4, hy - 1], [hx - 6.5, hy + 10], [hx - 10, hy + 12.5]);
+    p(mossMid, [hx - 12, hy - 5], [hx - 13, hy - 10], [hx - 9, hy - 9], [hx - 7, hy - 5]);
+    r(hx - 12, hy - 7, 3.5, 1.5, mossLight);
 
-    const jaw = open > 0.2 || striking ? 6 : windup ? 3 : 0;
-    p(out,
-      [hx - 9.5, hy - 2], [hx - 8.5, hy - 11], [hx - 1, hy - 15], [hx + 7.5, hy - 13], [hx + 11, hy - 8.5],
-      [hx + 19, hy - 5.5], [hx + 21, hy + 0.5], [hx + 15.5, hy + 6.5 + jaw], [hx + 5, hy + 7 + jaw], [hx - 5, hy + 4.5]);
-    p(boneDeep,
-      [hx - 8, hy - 2], [hx - 7, hy - 9.5], [hx - 1, hy - 13.5], [hx + 7, hy - 11.5], [hx + 10, hy - 7.5],
-      [hx + 17.5, hy - 4.8], [hx + 19.2, hy + 0.2], [hx + 14.5, hy + 5.2 + jaw], [hx + 5, hy + 5.6 + jaw], [hx - 4, hy + 3.5]);
-    p(boneMid,
-      [hx - 7.5, hy - 2.5], [hx - 6.5, hy - 9], [hx - 1, hy - 12.8], [hx + 6.8, hy - 11], [hx + 9.5, hy - 7.2],
-      [hx + 16.5, hy - 4.5], [hx + 18, hy - 0.5], [hx + 12, hy + 1.5], [hx - 3, hy + 1.5]);
-    p(boneLight, [hx - 5.5, hy - 8.5], [hx - 0.5, hy - 12.2], [hx + 6.5, hy - 10.5], [hx + 15.5, hy - 4.5], [hx + 9, hy - 2.5], [hx - 2, hy - 4]);
-    r(hx + 1, hy - 11.2, 7.5, 1.5, boneHi);
-    r(hx + 15.5, hy - 3.5, 2.2, 1.4, out);
-    p(out, [hx - 4, hy + 0.8], [hx + 18.5, hy + 0.2], [hx + 15, hy + 3.8 + jaw], [hx + 5, hy + 5.8 + jaw], [hx - 3, hy + 4]);
-    p(boneHi, [hx + 9.5, hy + 0.8], [hx + 13, hy + 0.8], [hx + 11, hy + 5]);
-    p(boneHi, [hx + 4, hy + 1.2], [hx + 7, hy + 1.2], [hx + 5.4, hy + 4.5]);
-    r(hx + 4.2, hy - 8.6, 4.2, 4.0, out);
-    r(hx + 5.0, hy - 7.8, 2.6, 2.6, open > 0.2 || striking ? tideHi : bronzeHi);
-    r(hx + 5.4, hy - 7.5, 1.2, 1.2, "#ffffff");
-    trace([[hx + 10.5, hy + 2], [hx + 17, hy - 2], [hx + 23, hy - 1]], out, 2.8);
-    trace([[hx + 10.5, hy + 2], [hx + 17, hy - 2], [hx + 23, hy - 1]], boneLight, 1.3);
-    if (open > 0.2 || striking) {
-      p(tideMid, [hx + 9, hy + 5], [hx + 19, hy + 5], [hx + 21, hy + 12], [hx + 16, hy + 15.5], [hx + 12, hy + 11.5]);
-      p(tideHi, [hx + 12, hy + 6.5], [hx + 18, hy + 6.5], [hx + 19, hy + 10.5], [hx + 15, hy + 12]);
-      r(hx + 13.5, hy + 7.2, 3.8, 1.8, "#ffffff");
+    p(out, [hx - 10, hy - 4], [hx - 9, hy - 12], [hx - 2, hy - 16], [hx + 7, hy - 13],
+      [hx + 12, hy - 7], [hx + 20, hy - 3], [hx + 20, hy + 3], [hx + 10, hy + 5], [hx - 4, hy + 4], [hx - 11, hy + 1]);
+    p(scaleDeep, [hx - 8.5, hy - 4], [hx - 7.5, hy - 10.5], [hx - 1, hy - 14], [hx + 6.5, hy - 11.5],
+      [hx + 11, hy - 6], [hx + 18.5, hy - 2.5], [hx + 18.5, hy + 2], [hx + 9.5, hy + 3.5], [hx - 3.5, hy + 2.5], [hx - 9.5, hy]);
+    p(scaleMid, [hx - 7, hy - 5], [hx - 6, hy - 10], [hx - 1, hy - 12.8], [hx + 6, hy - 10.8],
+      [hx + 10, hy - 6], [hx + 17, hy - 2.5], [hx + 10, hy - .5], [hx - 3, hy - 1]);
+    p(scaleLight, [hx - 6, hy - 9.5], [hx - 1, hy - 12], [hx + 5, hy - 10.5], [hx + 8, hy - 6], [hx + 2, hy - 6]);
+    p(mudMid, [hx - 7, hy - 8], [hx - 2, hy - 11], [hx + 1, hy - 8], [hx - 2, hy - 5]);
+    r(hx - 5, hy - 9.5, 4, 1.2, scaleRim);
+    r(hx + 14, hy - 2.8, 2.6, 1.6, out);
+    r(hx + 14.5, hy - 2.5, 1.2, .8, tideDeep);
+
+    p(mouthDeep, [hx - 3, hy + 2], [hx + 18.5, hy + 2], [hx + 17, hy + 6 + jaw], [hx + 2, hy + 8 + jaw], [hx - 4, hy + 5]);
+    p(gum, [hx + 1, hy + 3], [hx + 16.5, hy + 3], [hx + 15, hy + 5 + jaw * .55], [hx + 2, hy + 6 + jaw * .55]);
+    p(out, [hx - 5, hy + 6], [hx + 2, hy + 7], [hx + 18, hy + 6 + jaw], [hx + 16, hy + 11 + jaw],
+      [hx + 5, hy + 13 + jaw], [hx - 5, hy + 10]);
+    p(boneMid, [hx - 3.5, hy + 7], [hx + 2, hy + 8], [hx + 16.5, hy + 7 + jaw],
+      [hx + 14.5, hy + 10 + jaw], [hx + 5, hy + 11.5 + jaw], [hx - 3.5, hy + 9]);
+    r(hx + 4, hy + 8 + jaw, 9, 1.2, boneLight);
+    for (const tx of [2, 8, 14]) {
+      p(boneHi, [hx + tx, hy + 2], [hx + tx + 2.4, hy + 2], [hx + tx + 1.1, hy + (tx === 14 ? 4.5 : 6)]);
+    }
+    for (const tx of [3, 10]) {
+      p(boneHi, [hx + tx, hy + 8 + jaw], [hx + tx + 2.2, hy + 8 + jaw], [hx + tx + 1.1, hy + 4.5 + jaw * .5]);
+    }
+    p(out, [hx + .5, hy - 9], [hx + 8, hy - 10], [hx + 7, hy - 5], [hx + 2, hy - 6]);
+    p(bronzeHi, [hx + 2, hy - 8], [hx + 7, hy - 8.5], [hx + 6, hy - 6.5], [hx + 2.5, hy - 6.8]);
+    r(hx + 4, hy - 8, 1.2, 2, open > .2 || striking ? tideHi : "#fff2c1");
+    trace([[hx - 1, hy - 10], [hx + 4, hy - 12], [hx + 9, hy - 9]], scaleRim, 1.8);
+    p(scaleLight, [hx - 9, hy - 1], [hx - 4, hy - 5], [hx, hy - 1], [hx - 3, hy + 3], [hx - 8, hy + 2]);
+
+    trace([[hx + 9, hy + 4], [hx + 15, hy + 1], [hx + 18, hy + 2]], out, 2.6);
+    trace([[hx + 9, hy + 4], [hx + 15, hy + 1], [hx + 18, hy + 2]], boneLight, 1.2);
+    if (open > .2 || striking) {
+      p(tideMid, [hx + 8, hy + 7], [hx + 17, hy + 6 + jaw], [hx + 20, hy + 12], [hx + 15, hy + 15], [hx + 11, hy + 11]);
+      p(tideHi, [hx + 11, hy + 8], [hx + 16, hy + 8 + jaw * .5], [hx + 17, hy + 11], [hx + 14, hy + 13]);
+      r(hx + 12, hy + 8.5, 3.5, 1.5, "#ffffff");
     }
     if (striking) {
-      // Sweeping draconic jaw-and-water fang slash arc!
-      trace([[hx + 14, hy - 10], [hx + 26, hy + 1], [hx + 20, hy + 14]], tideHi, 2.8);
-      trace([[hx + 16, hy - 7], [hx + 24, hy + 1], [hx + 19, hy + 11]], "#ffffff", 1.3);
+      trace([[hx + 13, hy - 10], [32.5, hy + 2], [29, hy + 15]], tideHi, 2.8);
+      trace([[hx + 15, hy - 7], [30.5, hy + 1], [28, hy + 11]], "#ffffff", 1.2);
     }
   } else if (!back) {
-    const hy = (open > 0.2 ? -21.5 : -25.5) + bob;
+    const hy = -24 + open * 1.5 + bob + (windup ? -1.5 : striking ? 2 : 0);
     for (const d of [-1, 1]) {
-      const horn: Point[] = [[d * 8.5, hy - 3], [d * 14.5, hy - 16], [d * 20, hy - 22.5]];
-      trace(horn, out, 4.8);
-      trace(horn, antlerMid, 2.5);
-      trace([[d * 13.5, hy - 13], [d * 9.5, hy - 19], [d * 8.5, hy - 25.5]], out, 3.6);
-      trace([[d * 13.5, hy - 13], [d * 9.5, hy - 19], [d * 8.5, hy - 25.5]], antlerLight, 1.8);
-      p(out, [d * 8, hy - 3], [d * 15, hy - 7.5], [d * 20, hy - 3], [d * 18, hy + 9], [d * 10, hy + 13]);
-      p(mossMid, [d * 9, hy - 3], [d * 14.5, hy - 6], [d * 18.5, hy - 2.5], [d * 16.5, hy + 7.5], [d * 10.5, hy + 11]);
-      r(d * 13.5 - 1, hy - 2, 3.4, 2.2, mossLight);
+      const horn: Point[] = [[d * 9, hy - 6], [d * 15, hy - 16], [d * 20, hy - 22]];
+      trace(horn, out, 5);
+      trace(horn, boneMid, 2.7);
+      trace([[d * 9.5, hy - 6], [d * 14.5, hy - 15], [d * 19.5, hy - 21]], boneLight, 1.1);
+      trace([[d * 14, hy - 14], [d * 21, hy - 17], [d * 24, hy - 20]], out, 3.6);
+      trace([[d * 14, hy - 14], [d * 21, hy - 17], [d * 23.5, hy - 19]], boneLight, 1.5);
+      p(out, [d * 7, hy - 4], [d * 15, hy - 8], [d * 21, hy - 3], [d * 19, hy + 9], [d * 10, hy + 13]);
+      p(scaleDeep, [d * 8.5, hy - 3], [d * 14.5, hy - 6], [d * 19.5, hy - 2], [d * 17.5, hy + 7.5], [d * 10.5, hy + 11.5]);
+      p(mossMid, [d * 10, hy - 4], [d * 14.5, hy - 5], [d * 17.5, hy - 2], [d * 16, hy + 4], [d * 11, hy + 7]);
+      r(d < 0 ? -15 : 11, hy - 2, 3.5, 1.8, mossLight);
     }
-    p(out, [-16, hy - 3], [-12.5, hy - 11], [-5.5, hy - 14], [5.5, hy - 14], [12.5, hy - 11], [16, hy - 3], [12.5, hy + 5.5], [7.5, hy + 11], [-7.5, hy + 11], [-12.5, hy + 5.5]);
-    p(boneDeep, [-14.5, hy - 3], [-11.2, hy - 9.8], [-5, hy - 12.6], [5, hy - 12.6], [11.2, hy - 9.8], [14.5, hy - 3], [11.2, hy + 4.5], [6.8, hy + 9.5], [-6.8, hy + 9.5], [-11.2, hy + 4.5]);
-    p(boneMid, [-13.5, hy - 3.5], [-10.5, hy - 9.2], [-4.8, hy - 12], [4.8, hy - 12], [10.5, hy - 9.2], [13.5, hy - 3.5], [9.8, hy + 3.5], [5.5, hy + 7.5], [-5.5, hy + 7.5], [-9.8, hy + 3.5]);
-    p(boneLight, [-5, hy - 11], [5, hy - 11], [3.5, hy + 1.5], [-3.5, hy + 1.5]);
-    r(-3, hy - 10.5, 6, 1.6, boneHi);
-    trace([[-10.5, hy - 8.5], [-4, hy - 6], [4, hy - 6], [10.5, hy - 8.5]], boneDeep, 1.6);
-    r(-3.8, hy - 1, 1.8, 1.8, out);
-    r(2.0, hy - 1, 1.8, 1.8, out);
-    p(out, [-10.5, hy + 3], [10.5, hy + 3], [7.5, hy + 7], [-7.5, hy + 7]);
+
+    p(out, [-17, hy - 4], [-14, hy - 13], [-7, hy - 18], [7, hy - 18], [14, hy - 13], [17, hy - 4],
+      [14, hy + 6], [8, hy + 11], [-8, hy + 11], [-14, hy + 6]);
+    p(scaleDeep, [-15.5, hy - 4], [-12.5, hy - 11.5], [-6, hy - 16], [6, hy - 16], [12.5, hy - 11.5],
+      [15.5, hy - 4], [12.5, hy + 4.5], [7, hy + 9.5], [-7, hy + 9.5], [-12.5, hy + 4.5]);
+    p(scaleMid, [-14, hy - 5], [-11, hy - 11], [-5, hy - 14.5], [5, hy - 14.5], [11, hy - 11],
+      [14, hy - 5], [11, hy + 3], [6, hy + 7.5], [-6, hy + 7.5], [-11, hy + 3]);
+    p(scaleLight, [-10, hy - 12], [-4, hy - 15], [5, hy - 14], [9, hy - 10], [0, hy - 6], [-6, hy - 8]);
+    p(mudMid, [-9, hy - 10], [-3, hy - 12], [3, hy - 9], [0, hy - 5], [-5, hy - 6]);
+    r(-4, hy - 12, 7, 1.4, scaleRim);
+
     for (const d of [-1, 1]) {
-      p(boneHi, [d * 6.5, hy + 3], [d * 9.8, hy + 3], [d * 8, hy + 7.8]);
-      trace([[d * 11, hy + 2], [d * 17.5, hy], [d * 23, hy + 1.2]], out, 3.0);
-      trace([[d * 11, hy + 2], [d * 17.5, hy], [d * 23, hy + 1.2]], boneLight, 1.4);
-      const ex = d < 0 ? -7.2 : 3.2;
-      r(ex - 0.8, hy - 7.6, 4.2, 4.0, out);
-      r(ex, hy - 6.8, 2.6, 2.5, open > 0.2 ? tideHi : bronzeHi);
-      r(ex + 0.4, hy - 6.5, 1.1, 1.1, "#ffffff");
+      p(out, [d * 4, hy - 9], [d * 12, hy - 10], [d * 11, hy - 5], [d * 4.5, hy - 6]);
+      p(bronzeHi, [d * 5, hy - 8], [d * 11, hy - 8.8], [d * 10, hy - 6.4], [d * 5.5, hy - 7]);
+      r(d < 0 ? -8 : 6, hy - 8.2, 1.4, 2.4, open > .2 || striking ? tideHi : "#fff1b9");
+      trace([[d * 4, hy - 10], [d * 8, hy - 12], [d * 13, hy - 9]], scaleRim, 1.8);
+    }
+    r(-2.2, hy - 2.5, 1.6, 1.8, out);
+    r(.6, hy - 2.5, 1.6, 1.8, out);
+    p(mouthDeep, [-12, hy + 2], [12, hy + 2], [9, hy + 7 + jaw], [5, hy + 9 + jaw], [-5, hy + 9 + jaw], [-9, hy + 7 + jaw]);
+    p(gum, [-9, hy + 3], [9, hy + 3], [7, hy + 5 + jaw * .5], [-7, hy + 5 + jaw * .5]);
+    p(out, [-9, hy + 7 + jaw], [9, hy + 7 + jaw], [7, hy + 11 + jaw], [-7, hy + 11 + jaw]);
+    p(boneMid, [-7.5, hy + 8 + jaw], [7.5, hy + 8 + jaw], [6, hy + 10 + jaw], [-6, hy + 10 + jaw]);
+    for (const d of [-1, 1]) {
+      p(boneHi, [d * 6, hy + 2], [d * 9.5, hy + 2], [d * 7.5, hy + 8]);
+      p(boneHi, [d * 5, hy + 10 + jaw], [d * 7.5, hy + 10 + jaw], [d * 6.2, hy + 5 + jaw * .5]);
+      trace([[d * 11, hy + 3], [d * 17, hy], [d * 21, hy + 2]], out, 2.8);
+      trace([[d * 11, hy + 3], [d * 17, hy], [d * 21, hy + 2]], boneLight, 1.2);
+    }
+    if (open > .2 || striking) {
+      p(tideMid, [-5, hy + 3], [5, hy + 3], [4, hy + 7 + jaw * .5], [-4, hy + 7 + jaw * .5]);
+      r(-2.5, hy + 4, 5, 1.4, tideHi);
     }
   } else {
-    r(-8.5, -28.5 + bob, 17, 4.2, scaleRim);
-    for (const rx of [-9.5, 7.2]) r(rx, -23.5 + bob, 2.4, 2.4, bronzeHi);
-    trace([[-1, -20.5 + bob], [-1, -9], [2, -1]], tideMid, open > 0.2 ? 3.0 : 1.4);
-  }
-
-  for (const dx of [-17.5, side ? 9.5 : 17.5]) {
-    p(out, [dx - 5.5, -11.5], [dx + 2, -11.5], [dx + 7.5, -5], [dx + 6.5, -0.5], [dx - 3.5, 2.5], [dx - 9.5, -2]);
-    p(scaleDeep, [dx - 4.2, -10.2], [dx + 1.5, -10.2], [dx + 6, -4.8], [dx + 5.2, -1.5], [dx - 3, 1], [dx - 7.8, -2.5]);
-    p(scaleMid, [dx - 3.8, -9.8], [dx + 1, -9.8], [dx + 4.8, -5], [dx + 3.5, -2.5], [dx - 3, -1], [dx - 6.5, -3.5]);
-    p(scaleLight, [dx - 3.2, -9.2], [dx + 0.8, -9.2], [dx + 2, -6], [dx - 2.5, -5.5]);
-    for (const cx of [-4, -0.8, 2.4]) r(dx + cx, -2.6, 2.0, 2.6, boneHi);
+    r(-10, -43 + bob, 20, 3, bronzeDeep);
+    r(-8, -42 + bob, 16, 1.2, bronzeLight);
+    for (const d of [-1, 1]) r(d < 0 ? -15 : 12, -25 + bob, 3, 3, bronzeHi);
+    trace([[0, -18 + bob], [0, -5]], tideMid, open > .2 ? 3 : 1.4);
   }
 
   if (skill && side && !live) {
-    p(tideDeep, [2, -1], [12, -5.5], [19, -7.5], [22, -12], [29, -9.5], [35, -3], [32, 1.5], [13, 3.5], [6, 4.5], [-4, 3.5]);
-    p(tideMid, [6, -1], [15, -4], [22, -7.5], [28, -7.5], [33, -2.5], [28, 1], [12, 2.5]);
-    trace([[7, 0.5], [16, -1.5], [24, -4.5], [30, -6.5], [34.5, -3]], tideHi, 1.8);
+    p(tideDeep, [2, -1], [12, -5.5], [19, -8], [23, -13], [29, -10], [35, -3], [32, 2], [13, 3.5], [6, 4.5], [-4, 3.5]);
+    p(tideMid, [6, -1], [15, -4], [22, -8], [28, -8], [33, -2.5], [28, 1], [12, 2.5]);
+    trace([[7, .5], [16, -1.5], [24, -5], [30, -7], [34, -3]], tideHi, 1.8);
     trace([[13, -4.5], [21, -6.5], [28, -8.5]], "#ffffff", 1.1);
-    for (const [dx, dy] of [[24, -10.5], [30, -8.5], [33, -1]]) r(dx, dy, 2.4, 1.5, "#e6e0b8");
+    for (const [dx, dy] of [[24, -11], [30, -9], [33, -1]]) r(dx, dy, 2.4, 1.5, "#e6e0b8");
   }
 };
 
@@ -1326,312 +1494,392 @@ export const paddleOtter: Painter = ({ r, p, trace, frame, otter }, view, skill)
   const bracing = pose === "brace" || (skill && !windup && !striking);
   const idle = pose === "idle" && !bracing;
   const walking = pose === "walk";
-  const f = ((frame % 6) + 6) % 6;
+  const f8 = ((frame % 8) + 8) % 8;
+  const f6 = ((frame % 6) + 6) % 6;
+  const action = otter?.idle ?? "none";
+  const actionFrame = ((frame % 4) + 4) % 4;
 
-  // Clean, high-contrast palette matching rabbit-guard & frost-wolf clarity
-  const ink = "#2f211e";
-  const furShade = "#6b4735", fur = "#9d6e4e", furHi = "#bd8c67";
-  const creamShade = "#d8c4a6", cream = "#f5ebd6", creamHi = "#fffaf0";
-  const wood = "#966a45", woodHi = "#c99b68";
-  const gold = "#ebca78", goldHi = "#fff4c4";
-  const jade = "#7ee8cc";
+  const ink = "#2e3243";
+  const shadow = fixedBank ? "#454e59" : mudPatrol ? "#55483f" : "#4e4845";
+  const coat = fixedBank ? "#6e7474" : mudPatrol ? "#85634e" : "#746055";
+  const sheen = fixedBank ? "#a1aaa9" : mudPatrol ? "#b08e6e" : "#a08b79";
+  const creamShade = "#bcb9a8", cream = "#dfdccb", creamHi = "#f7f2df";
+  const leather = "#3b393b", leatherMid = "#695747";
+  const wood = "#72573f", woodHi = "#bc966b";
+  const copper = "#a1764d", copperHi = "#e9c087";
+  const jade = "#8ddbc9", water = "#58aaa4", waterHi = "#bcebe0";
+  const band = fixedBank ? "#426b73" : mudPatrol ? "#934f3e" : tier >= 2 ? "#536d73" : "#77604b";
+  const bandTrim = fixedBank ? (mastery ? jade : "#9abfba") : mudPatrol ? "#e0a06b" : tier >= 2 ? "#bacdca" : "#c5ad83";
+  const bladeBand = fixedBank ? (mastery ? jade : "#7eb7b0") : mudPatrol ? "#cf7952" : tier >= 2 ? copper : "#6f9e93";
+  const eyeColor = fixedBank && mastery ? "#a8ecdc" : "#efc078";
+  const slapLift = idle && action === "tail-lift";
+  const tailSlap = idle && action === "tail-slap";
+  const slapAfter = idle && action === "splash";
+  const checkingPaddle = idle && action === "check-paddle";
+  const sniffing = idle && action === "sniff";
+  const scanning = idle && action === "scan";
+  const earFlick = idle && action === "flick";
+  const blink = idle && action === "blink";
+  const earTwitch = earFlick ? (actionFrame % 2 ? -1.0 : 0.4) : 0;
+  const headTurn = scanning ? [-1.6, 0, 1.6, 0][actionFrame]
+    : sniffing ? 1.8
+    : checkingPaddle ? -1.2
+    : 0;
 
-  // Clean tunic + scarf color identity by tier/branch (parallels rabbit-guard)
-  const coatDark = fixedBank ? "#26474a" : mudPatrol ? "#6b3124" : tier >= 2 ? "#29414f" : "#2c4c42";
-  const coat = fixedBank ? "#3d7473" : mudPatrol ? "#b8553b" : tier >= 2 ? "#466c80" : "#477867";
-  const coatHi = fixedBank ? "#65a39c" : mudPatrol ? "#dc7c58" : tier >= 2 ? "#6e99ad" : "#6ca38b";
-  const scarf = fixedBank ? "#d9c27c" : mudPatrol ? "#e8a84d" : tier >= 2 ? "#e2b25c" : "#d99248";
-  const scarfHi = "#ffebb8";
-  const bladeBand = fixedBank ? (mastery ? jade : "#6eb5ac") : mudPatrol ? "#d96743" : tier >= 2 ? gold : "#5ba395";
-
-  // Snappy motion curves + 6-frame idle with tail-slap (f=1..2 lift + blink, f=3 slap ground + splash!)
-  const leanX = windup ? -2.8 : striking ? 4.2 : bracing ? 1.4 : 0;
-  const x = (side ? 1.5 : 0) + leanX;
-  const crouch = bracing ? 3.5 : windup ? 1.4 : striking ? 1.8 : 0;
-  const slapLift = idle && (f === 1 || f === 2);
-  const tailSlap = idle && f === 3;
-  const slapAfter = idle && f === 4;
-  const bob = idle ? [0, -1.0, -1.5, 0.9, -0.3, 0][f]
-    : walking ? [0, -1.1, -1.6, -0.6, 0, 0.4][f]
+  const leanX = windup ? -2.2 : striking ? 3.0 : bracing ? 1.0 : 0;
+  const x = (side ? 1.0 : 0) + leanX;
+  const crouch = bracing ? 3.2 : windup ? 1.2 : striking ? 1.4 : 0;
+  const idleBob = [0, -0.8, -1.2, 0.5, -0.4, -0.9, -0.3, 0][f8];
+  const actionBob = sniffing ? [0, 0.7, 1.2, 0.7][actionFrame]
+    : checkingPaddle ? [0, -0.5, -1.0, -0.4][actionFrame]
+    : scanning ? [0, -0.6, -0.9, -0.4][actionFrame]
+    : earFlick ? [0, -0.8, -0.4, 0][actionFrame]
+    : slapLift ? [0, -0.5, -1.0, -0.5][actionFrame]
+    : 0;
+  const bob = idle ? idleBob + actionBob
+    : walking ? [0, -1.2, -1.8, -0.6, 0.2, 0.5][f6]
     : 0;
   const py = bob + crouch;
-  const blink = idle && f === 2;
-  const earTwitch = idle && (f === 1 || f === 3) ? -0.9 : 0;
-  const stepA = walking ? Math.sin((f * Math.PI) / 3) : 0;
+  const bulk = fixedBank ? 1.6 : mudPatrol ? -0.4 : 0;
+  const stepA = walking ? Math.sin((f6 * Math.PI) / 3) : 0;
   const stepB = -stepA;
-  const tailSway = bracing ? -1.8
-    : windup ? 2.2
+  const tailSway = bracing ? -1.6
+    : windup ? 2.5
     : striking ? -3.0
-    : idle ? [0, -5.5, -9.8, 2.2, -1.2, 0.2][f]
-    : Math.sin((f * Math.PI) / 3) * 1.6;
+    : slapLift ? [-4.0, -7.0, -11.0, -8.0][actionFrame]
+    : idle ? [0, -1.2, 0.8, 0, -0.8, 1.0, -0.4, 0][f8]
+    : Math.sin((f6 * Math.PI) / 3) * 1.8;
 
-  // 0. Tier 4 Mud-Patrol: crisp spare brass-edged paddle tucked diagonally behind back
+  // 0. Tier 4 Mud-Patrol: spare gold-tipped sentinel paddle strapped cleanly behind back
   if (mudPatrol && mastery) {
-    trace([[x - 12.5, -36 + py], [x + 9, -7 + crouch * 0.4]], ink, 3.4);
-    trace([[x - 12.5, -36 + py], [x + 9, -7 + crouch * 0.4]], woodHi, 1.5);
-    p(ink, [x - 16.5, -40 + py], [x - 10, -42 + py], [x - 7.5, -35 + py], [x - 14, -33 + py]);
-    p(gold, [x - 15, -39 + py], [x - 10.8, -40.5 + py], [x - 9, -35.8 + py], [x - 13.4, -34.5 + py]);
+    trace([[x - 13.5, -40 + py], [x + 10, -8 + crouch * 0.4]], ink, 3.4);
+    trace([[x - 13.5, -40 + py], [x + 10, -8 + crouch * 0.4]], woodHi, 1.5);
+    p(ink, [x - 18, -44 + py], [x - 11, -46 + py], [x - 8.5, -39 + py], [x - 15.5, -37 + py]);
+    p(copper, [x - 16.5, -43 + py], [x - 12, -44.5 + py], [x - 10, -39.8 + py], [x - 14.5, -38.5 + py]);
+    r(x - 13.5, -43 + py, 3.0, 1.2, copperHi);
   }
 
-  // 1. Signature sleek, long tapering otter rudder-tail (clean 2-tone curve; lifts high on f=1..2 and slaps ground on f=3!)
-  const tMidY = slapLift ? -12.5 + tailSway * 0.45 : tailSlap ? -5.5 : -9.5 + tailSway * 0.5;
-  const tTipY = tailSlap ? 1.8 : -2.5 + tailSway;
-  const tTopY = tailSlap ? -2.2 : -6.5 + tailSway;
-  const tBotY = tailSlap ? 3.8 : 2 + tailSway;
+  // 1. Long, muscular tapering otter rudder-tail (behind lower hip; lifts & slaps ground on idle f8=3!)
+  const tBaseX = side ? x - 6.5 : x - 5.5;
+  const tMidY = slapLift ? -13.5 + tailSway * 0.45 : tailSlap ? -5.0 : -9.2 + tailSway * 0.5;
+  const tTipX = x - 24;
+  const tTipY = tailSlap ? 2.0 : -2.2 + tailSway;
+  const tTopY = tailSlap ? -2.0 : -6.4 + tailSway;
+  const tBotY = tailSlap ? 4.0 : 2.2 + tailSway;
   p(ink,
-    [x - 5, -12 + bob * 0.6], [x - 14, tMidY], [x - 23.5, tTopY], [x - 28.5, tTipY],
-    [x - 26.5, tBotY], [x - 17, tailSlap ? 3.4 : 2.5 + tailSway * 0.5], [x - 7, 0.5]);
-  p(furShade,
-    [x - 6, -10.5 + bob * 0.6], [x - 14.5, tMidY + 1.4], [x - 22.8, tTopY + 1.2], [x - 26.8, tTipY + 0.5],
-    [x - 24.8, tBotY - 1.3], [x - 16.5, tailSlap ? 2.0 : 1 + tailSway * 0.5], [x - 7.5, -1]);
-  p(fur,
-    [x - 7, -10 + bob * 0.6], [x - 15, tMidY + 1.6], [x - 22, tTopY + 1.4], [x - 25.2, tTipY],
-    [x - 18, tailSlap ? 0.4 : -1.6 + tailSway * 0.6], [x - 9, -4.5 + bob * 0.4]);
+    [tBaseX, -13 + bob * 0.6], [tBaseX - 9.5, tMidY], [tTipX + 5.5, tTopY], [tTipX, tTipY],
+    [tTipX + 2.2, tBotY], [tBaseX - 11, tailSlap ? 3.6 : 2.6 + tailSway * 0.5], [tBaseX - 1, 0.6]);
+  p(shadow,
+    [tBaseX - 1, -11.6 + bob * 0.6], [tBaseX - 10, tMidY + 1.4], [tTipX + 6, tTopY + 1.2], [tTipX + 1.8, tTipY + 0.5],
+    [tTipX + 3.6, tBotY - 1.2], [tBaseX - 10.5, tailSlap ? 2.2 : 1.2 + tailSway * 0.5], [tBaseX - 1.5, -0.8]);
+  p(coat,
+    [tBaseX - 2, -11.2 + bob * 0.6], [tBaseX - 10.5, tMidY + 1.6], [tTipX + 7, tTopY + 1.4], [tTipX + 3.4, tTipY],
+    [tBaseX - 12.5, tailSlap ? 0.4 : -1.4 + tailSway * 0.6], [tBaseX - 3, -5.0 + bob * 0.4]);
 
-  // Tail-slap ground impact splash & water droplets on idle f=3 (and tiny fading droplets on f=4)
+  // Tail-slap ground impact ripple & water droplets on idle f8=3..4
   if (tailSlap) {
-    // Crisp turquoise marsh-water ripple under slapped tail
-    p("#54b3a4", [x - 31, 3.2], [x - 24, 0.8], [x - 14, 1.8], [x - 18, 4.8], [x - 29, 4.8]);
-    r(x - 27, 2.2, 7.5, 1.3, creamHi);
-    // Upward splash arc & droplets
-    trace([[x - 29, 0.5], [x - 32, -4.5], [x - 30.5, -7.8]], "#88d6c7", 1.5);
-    trace([[x - 21, -1.5], [x - 22.5, -6.5]], "#88d6c7", 1.3);
-    r(x - 32.5, -9.2, 2.0, 2.0, creamHi);
-    r(x - 24, -8.5, 1.8, 1.8, creamHi);
-    r(x - 17.5, -4.8, 1.6, 1.6, "#88d6c7");
+    p("#54b3a4", [tTipX - 2.5, 3.4], [tTipX + 4.8, 0.8], [tTipX + 15.5, 1.8], [tTipX + 11.2, 5.0], [tTipX - 0.5, 5.0]);
+    r(tTipX + 1.8, 2.3, 8.0, 1.4, creamHi);
+    trace([[tTipX - 0.5, 0.6], [tTipX - 3.8, -4.8], [tTipX - 2.2, -8.4]], "#88d6c7", 1.6);
+    trace([[tTipX + 8.0, -1.6], [tTipX + 6.4, -7.0]], "#88d6c7", 1.4);
+    r(tTipX - 4.2, -9.8, 2.1, 2.1, creamHi);
+    r(tTipX + 4.8, -9.0, 1.9, 1.9, creamHi);
+    r(tTipX + 11.8, -5.0, 1.7, 1.7, "#88d6c7");
   } else if (slapAfter) {
-    r(x - 30, -5.5, 1.5, 1.5, "#88d6c7");
-    r(x - 22, -6.2, 1.4, 1.4, creamHi);
+    r(tTipX - 1.8, -6.0, 1.6, 1.6, "#88d6c7");
+    r(tTipX + 7.0, -6.8, 1.5, 1.5, creamHi);
   }
 
-  // 2. Clean webbed otter feet (no busy inner lines)
+  // 2. Sturdy upright sentinel hind feet (consistent bipedal stance across ALL views!)
   const drawFoot = (fx: number, lift: number, far: boolean) => {
-    const fy = (far ? -1 : 0.8) - Math.max(0, lift) * 2.0;
-    p(ink, [fx - 5, fy - 1.5], [fx - 2, fy - 4], [fx + 3, fy - 3.8], [fx + 5.5, fy - 0.5], [fx + 4.5, fy + 2], [fx - 4.5, fy + 2]);
-    p(far ? furShade : fur, [fx - 3.6, fy - 1], [fx - 1.5, fy - 2.6], [fx + 2.4, fy - 2.5], [fx + 4, fy - 0.3], [fx + 3.2, fy + 0.8], [fx - 3.2, fy + 0.8]);
+    const fy = (far ? -1.0 : 1.0) - Math.max(0, lift) * 2.5;
+    p(ink, [fx - 5.4, fy - 1.6], [fx - 2.2, fy - 4.8], [fx + 3.6, fy - 4.4], [fx + 6.2, fy - 0.5], [fx + 5.0, fy + 2.2], [fx - 5.0, fy + 2.2]);
+    p(far ? shadow : coat, [fx - 3.8, fy - 1.0], [fx - 1.6, fy - 3.2], [fx + 2.8, fy - 2.9], [fx + 4.6, fy - 0.3], [fx + 3.6, fy + 0.9], [fx - 3.4, fy + 0.9]);
+    if (!far) r(fx + 0.5, fy - 1.1, 2.4, 1.1, sheen);
   };
   if (side) {
-    drawFoot(x - 4.5 + stepB * 2.8 + (windup ? -1.5 : 0), stepB, true);
-    drawFoot(x + 5 + stepA * 3 + (striking ? 2.5 : 0), stepA, false);
+    drawFoot(x - 5.2 + stepB * 3.8 + (windup ? -2.0 : 0), stepB, true);
+    drawFoot(x + 5.5 + stepA * 4.0 + (striking ? 3.0 : bracing ? 2.0 : 0), stepA, false);
   } else {
-    drawFoot(x - 5.5, stepA, false);
-    drawFoot(x + 5.5, stepB, false);
+    drawFoot(x - 6.8, stepA, false);
+    drawFoot(x + 6.8, stepB, false);
   }
 
-  // 3. Clean, iconic tunic & scarf (simple large color blocks, zero strap clutter)
-  p(ink,
-    [x - 11.5, -5.5 + py * 0.5], [x - 12, -14 + py], [x - 9.5, -23.5 + py], [x + 9.5, -23.5 + py],
-    [x + 12, -14 + py], [x + 11.5, -5.5 + py * 0.5], [x + 7, -2.5], [x - 7, -2.5]);
-  p(coatDark,
-    [x - 10, -6.5 + py * 0.5], [x - 10.4, -14 + py], [x - 8, -22 + py], [x + 8, -22 + py],
-    [x + 10.4, -14 + py], [x + 10, -6.5 + py * 0.5], [x + 6, -4 + py * 0.3], [x - 6, -4 + py * 0.3]);
-  p(coat,
-    [x - 9.2, -7.5 + py * 0.5], [x - 9.6, -14.5 + py], [x - 7.5, -21.5 + py], [x + 7.2, -21.5 + py],
-    [x + 9.2, -14.5 + py], [x + 7.2, -7.5 + py * 0.5], [x - 4, -6 + py * 0.5]);
-  p(coatHi, [x - 8.5, -15 + py], [x - 6.8, -21 + py], [x + 1, -21 + py], [x - 1, -15 + py], [x - 6.5, -13 + py]);
+  // 3. Enlarged UPRIGHT muscular otter sentinel torso (SAME tall standing stature in Front, Side, and Back!)
+  if (side) {
+    // Upright standing side torso: proud arched back on left (-x), bright cream chest facing forward (+x)
+    p(ink,
+      [x - 10.5 - bulk, -5.5 + py * 0.5], [x - 11.8 - bulk, -15.5 + py], [x - 9.0 - bulk * 0.5, -27.5 + py],
+      [x + 7.5 + bulk * 0.5, -27.5 + py], [x + 11.5 + bulk * 0.8, -16.5 + py], [x + 10.5 + bulk * 0.5, -5.5 + py * 0.5],
+      [x + 6.2, -2.2], [x - 6.8, -2.2]);
+    p(shadow,
+      [x - 9.0 - bulk, -6.5 + py * 0.5], [x - 10.2 - bulk, -15.5 + py], [x - 7.6 - bulk * 0.4, -26.0 + py],
+      [x + 6.4 + bulk * 0.4, -26.0 + py], [x + 10.0 + bulk * 0.7, -16.5 + py], [x + 9.0 + bulk * 0.4, -6.5 + py * 0.5],
+      [x + 5.2, -3.6 + py * 0.3], [x - 5.8, -3.6 + py * 0.3]);
+    p(coat,
+      [x - 8.2 - bulk * 0.8, -7.5 + py * 0.5], [x - 9.2 - bulk * 0.8, -16.0 + py], [x - 6.8, -25.4 + py],
+      [x + 5.8, -25.4 + py], [x + 8.6, -16.5 + py], [x + 5.0, -7.5 + py * 0.5], [x - 4.5, -6.0 + py * 0.5]);
+    // Sleek wet-fur highlight along arched upright back
+    p(sheen, [x - 8.2, -16.5 + py], [x - 6.4, -24.8 + py], [x - 1.5, -24.8 + py], [x - 3.5, -16.5 + py], [x - 6.8, -11.5 + py * 0.7]);
+    // Proud bright cream chest & belly facing forward (+x)
+    p(creamShade, [x + 1.2, -7.5 + py * 0.5], [x + 2.0, -24.5 + py], [x + 7.4, -24.5 + py], [x + 9.8, -16.5 + py], [x + 8.6, -7.5 + py * 0.5], [x + 4.5, -5.0 + py * 0.4]);
+    p(cream, [x + 2.4, -8.5 + py * 0.5], [x + 3.0, -24.0 + py], [x + 7.2, -24.0 + py], [x + 9.0, -16.5 + py], [x + 7.4, -8.5 + py * 0.5]);
+    r(x + 4.2, -22.2 + py, 3.2, 3.0, creamHi);
+  } else {
+    // Upright standing front/back torso (matching height y: -27.5 .. -2.2)
+    p(ink,
+      [x - 12.2 - bulk, -5.5 + py * 0.5], [x - 12.8 - bulk, -15.5 + py], [x - 9.8 - bulk * 0.5, -27.5 + py],
+      [x + 9.8 + bulk * 0.5, -27.5 + py], [x + 12.8 + bulk, -15.5 + py], [x + 12.2 + bulk, -5.5 + py * 0.5],
+      [x + 7.4, -2.2], [x - 7.4, -2.2]);
+    p(shadow,
+      [x - 10.6 - bulk, -6.5 + py * 0.5], [x - 11.2 - bulk, -15.5 + py], [x - 8.4 - bulk * 0.4, -26.0 + py],
+      [x + 8.4 + bulk * 0.4, -26.0 + py], [x + 11.2 + bulk, -15.5 + py], [x + 10.6 + bulk, -6.5 + py * 0.5],
+      [x + 6.2, -3.6 + py * 0.3], [x - 6.2, -3.6 + py * 0.3]);
+    p(coat,
+      [x - 9.8 - bulk * 0.8, -7.5 + py * 0.5], [x - 10.2 - bulk * 0.8, -16.0 + py], [x - 7.6, -25.4 + py],
+      [x + 7.6, -25.4 + py], [x + 10.2 + bulk * 0.8, -16.0 + py], [x + 8.4, -7.5 + py * 0.5], [x - 5.0, -6.0 + py * 0.5]);
+    if (!back) {
+      p(creamShade, [x - 7.4, -9.0 + py * 0.5], [x - 6.8, -24.5 + py], [x + 6.8, -24.5 + py], [x + 7.4, -9.0 + py * 0.5], [x + 4.4, -5.2 + py * 0.4], [x - 4.4, -5.2 + py * 0.4]);
+      p(cream, [x - 6.2, -10.2 + py * 0.5], [x - 5.8, -24.0 + py], [x + 5.8, -24.0 + py], [x + 6.2, -10.2 + py * 0.5], [x + 3.4, -6.8 + py * 0.4], [x - 3.4, -6.8 + py * 0.4]);
+      r(x - 3.4, -22.2 + py, 6.8, 2.4, creamHi);
+    } else {
+      p(sheen, [x - 5.4, -24.2 + py], [x + 5.4, -24.2 + py], [x + 6.2, -13.0 + py * 0.7], [x - 6.2, -13.0 + py * 0.7]);
+    }
+  }
 
-  // Clean thin belt with single crisp buckle (like rabbit-guard)
-  r(x - 8.8, -9.8 + py * 0.6, 17.6, 1.8, "#45342e");
+  // 4. Clean sentinel martial gear (Frost-Wolf-style crisp collar, waist belt, tier harness & branch pauldrons/capelet)
+  // Crisp waist-belt with single brass/jade clasp (gives disciplined guardian silhouette without boxy clothes!)
+  const beltW = side ? 9.6 : 10.6;
+  r(x - beltW, -11.4 + py * 0.6, beltW * 2, 2.2, ink);
+  r(x - beltW + 1, -11.2 + py * 0.6, beltW * 2 - 2, 1.4, leatherMid);
   if (!back) {
-    r(x + (side ? 1.5 : -1.5), -10.3 + py * 0.6, 3.2, 2.8, fixedBank && mastery ? jade : gold);
-    r(x + (side ? 2.1 : -0.9), -9.8 + py * 0.6, 1.2, 1.2, creamHi);
+    const bx = side ? x + 3.8 : x - 1.6;
+    r(bx, -11.9 + py * 0.6, 3.4, 3.0, fixedBank && mastery ? jade : copper);
+    r(bx + 0.7, -11.4 + py * 0.6, 1.3, 1.2, copperHi);
   }
 
-  // Branch shoulder accent (clean & readable)
   if (fixedBank) {
-    for (const d of [-1, 1]) {
-      p(ink, [x + d * 6, -22.5 + py], [x + d * 13.5, -21 + py], [x + d * 13, -15.5 + py], [x + d * 6.5, -16.5 + py]);
-      p("#729e9a", [x + d * 7, -21.2 + py], [x + d * 12, -20 + py], [x + d * 11.6, -16.8 + py], [x + d * 7.4, -17.5 + py]);
-      r(x + d * 9.5 - 1, -20.5 + py, 2, 1.1, mastery ? jade : creamHi);
+    // Heavy riveted breakwater shoulder pauldrons (consistent in front & side!)
+    if (side) {
+      p(ink, [x - 6.5, -26.5 + py], [x + 4.5, -26.0 + py], [x + 5.5, -18.5 + py], [x - 6.0, -19.2 + py]);
+      p(band, [x - 5.2, -25.2 + py], [x + 3.4, -24.8 + py], [x + 4.2, -19.8 + py], [x - 4.8, -20.4 + py]);
+      p(bandTrim, [x - 4.4, -24.4 + py], [x + 2.6, -24.0 + py], [x + 2.8, -22.2 + py], [x - 4.2, -22.6 + py]);
+      if (mastery) r(x - 1.5, -22.0 + py, 2.6, 1.8, jade);
+    } else {
+      for (const d of [-1, 1]) {
+        p(ink, [x + d * 5.8, -26.5 + py], [x + d * 14.2, -24.5 + py], [x + d * 13.8, -17.5 + py], [x + d * 6.4, -18.5 + py]);
+        p(band, [x + d * 6.8, -25.2 + py], [x + d * 12.6, -23.5 + py], [x + d * 12.2, -18.8 + py], [x + d * 7.2, -19.6 + py]);
+        p(bandTrim, [x + d * 7.4, -24.4 + py], [x + d * 11.8, -23.0 + py], [x + d * 11.4, -21.2 + py], [x + d * 7.8, -21.8 + py]);
+        r(x + d * 11.8 - 0.6, -23.0 + py, 1.2, 1.2, copperHi);
+      }
     }
   } else if (mudPatrol) {
-    // Fluttering scarf tail behind shoulder
-    const flutter = Math.sin((f * Math.PI) / 3) * 1.8;
-    p(ink, [x - 8, -21.5 + py], [x - 17, -20.5 + py + flutter], [x - 19, -15.5 + py + flutter], [x - 9.5, -16.5 + py]);
-    p(scarf, [x - 8.5, -20.5 + py], [x - 15.8, -19.5 + py + flutter], [x - 17.2, -16.8 + py + flutter], [x - 9.5, -17.5 + py]);
-    r(x - 15, -19 + py + flutter * 0.7, 4.5, 1.1, scarfHi);
-  }
-
-  // Clean neckerchief collar (signature warm accent separating head & tunic)
-  p(ink, [x - 10, -21 + py], [x - 6, -24 + py], [x + 6, -24 + py], [x + 10, -21 + py], [x + 7, -17 + py], [x, -16 + py], [x - 7, -17 + py]);
-  p(scarf, [x - 8.5, -20.8 + py], [x - 5.2, -23 + py], [x + 5.2, -23 + py], [x + 8.5, -20.8 + py], [x + 6, -18 + py], [x, -17.2 + py], [x - 6, -18 + py]);
-  r(x - 4.5, -20.5 + py, 5.5, 1.2, scarfHi);
-
-  // 4. Unmistakable OTTER HEAD: front preserved cleanly; side uses cute blunt 3/4 otter profile (zero pointy snout, both round ears logical)
-  const hx = x + (side ? 1.0 : 0);
-  const hy = -30 + py;
-
-  // Small, low-set round otter ears
-  const drawEar = (ex: number, ey: number, far = false) => {
-    const dy = ey + earTwitch;
-    p(ink, [ex - 3.6, dy + 1.2], [ex - 3.8, dy - 2.6], [ex - 1, dy - 4.5], [ex + 2.2, dy - 4.2], [ex + 3.8, dy - 1.5], [ex + 3, dy + 1.6]);
-    p(far ? furShade : fur, [ex - 2.3, dy + 0.5], [ex - 2.4, dy - 2], [ex - 0.5, dy - 3.2], [ex + 1.6, dy - 3], [ex + 2.4, dy - 1.1], [ex + 1.8, dy + 0.6]);
-    if (!back && !far) r(ex - 0.8, dy - 1.8, 1.8, 1.8, "#d4a488");
-  };
-  if (side) {
-    // Far ear peeking cleanly behind upper-front crown in 3/4 view
-    drawEar(hx + 7.2, hy - 6.0, true);
-    // Near ear sitting cleanly on upper-back edge of round otter head
-    drawEar(hx - 9.4, hy - 5.2, false);
-  } else {
-    drawEar(hx - 10.2, hy - 5.2);
-    drawEar(hx + 10.2, hy - 5.2);
-  }
-
-  // Smooth, blunt, plump round otter head silhouette (same adorable roundness in both front & 3/4 side!)
-  p(ink,
-    [hx - 13, hy + 2], [hx - 12.2, hy - 5.5], [hx - 7.5, hy - 10.2], [hx + 7.5, hy - 10.2],
-    [hx + 12.2, hy - 5.5], [hx + 13, hy + 2], [hx + 9.2, hy + 8], [hx - 9.2, hy + 8]);
-  p(furShade,
-    [hx - 11.4, hy + 1.6], [hx - 10.6, hy - 4.8], [hx - 6.5, hy - 8.8], [hx + 6.5, hy - 8.8],
-    [hx + 10.6, hy - 4.8], [hx + 11.4, hy + 1.6], [hx + 7.8, hy + 6.6], [hx - 7.8, hy + 6.6]);
-  p(fur,
-    [hx - 10.5, hy + 0.4], [hx - 9.8, hy - 4.8], [hx - 6.2, hy - 8.4], [hx + 6.2, hy - 8.4],
-    [hx + 9.8, hy - 4.6], [hx + 9.8, hy + 0.4], [hx + 5.5, hy + 4.8], [hx - 6.5, hy + 4.8]);
-  p(furHi, [hx - 7, hy - 5.2], [hx - 4.5, hy - 8], [hx + 3.5, hy - 8], [hx + 4.8, hy - 5.2], [hx - 1.5, hy - 4.4]);
-
-  // Clean Tier 2+ brow-band (parallels rabbit-guard's neat rank headband)
-  if (tier >= 2) {
-    p(ink, [hx - 10.2, hy - 5.2], [hx - 6.5, hy - 8.2], [hx + 6.5, hy - 8.2], [hx + 10.2, hy - 5.2], [hx + 8.5, hy - 3.6], [hx - 8.5, hy - 3.6]);
-    p(fixedBank ? "#74a6a1" : coat, [hx - 8.8, hy - 5.2], [hx - 5.8, hy - 7.2], [hx + 5.8, hy - 7.2], [hx + 8.8, hy - 5.2], [hx + 7.5, hy - 4.4], [hx - 7.5, hy - 4.4]);
-    r(hx + (side ? 1.8 : -1.5), hy - 7.2, 3, 2.4, fixedBank && mastery ? jade : goldHi);
-    if (mudPatrol) {
-      // Crisp scout crest feather tucked in headband (like rabbit spear branch!)
-      p(ink, [hx - 9, hy - 6], [hx - 14.5, hy - 11.5], [hx - 11.5, hy - 13.5], [hx - 6.5, hy - 7.5]);
-      p(scarfHi, [hx - 8.5, hy - 6.5], [hx - 13, hy - 11], [hx - 11, hy - 12.2], [hx - 7.2, hy - 7.5]);
-    }
-  }
-
-  if (!back) {
-    // Signature big continuous pale-cream otter cheeks, muzzle & chin bib (blunt & round, shifted gently in 3/4 side)
-    const mx = hx + (side ? 3.2 : 0);
-    const my = hy + 3.2;
-    const ml = side ? 7.6 : 9.8, mr = side ? 7.8 : 9.8;
-    p(creamShade,
-      [mx - ml, my - 1.2], [mx - ml * 0.62, my - 4.2], [mx + mr * 0.62, my - 4.2],
-      [mx + mr, my - 1.2], [mx + mr * 0.78, my + 4.2], [mx - ml * 0.78, my + 4.2]);
-    p(cream,
-      [mx - (ml - 0.8), my - 1.4], [mx - (ml - 0.8) * 0.62, my - 3.8], [mx + (mr - 0.8) * 0.62, my - 3.8],
-      [mx + (mr - 0.8), my - 1.4], [mx + (mr - 0.8) * 0.75, my + 3.2], [mx - (ml - 0.8) * 0.75, my + 3.2]);
-    r(mx - (side ? 3.0 : 4.2), my - 3.2, side ? 6.8 : 8.4, 2.0, creamHi);
-
-    // Subtle rosy otter cheek blush
+    // Fluttering martial scout scarf/capelet behind shoulder
+    const flutter = Math.sin((f6 * Math.PI) / 3) * 2.0;
+    p(ink, [x - 7.5, -25.5 + py], [x - 18.5, -24.0 + py + flutter], [x - 20.5, -18.0 + py + flutter], [x - 9.0, -19.5 + py]);
+    p(band, [x - 8.2, -24.4 + py], [x - 17.0, -23.0 + py + flutter], [x - 18.5, -19.4 + py + flutter], [x - 9.0, -20.5 + py]);
+    r(x - 16.2, -22.2 + py + flutter * 0.7, 5.2, 1.2, bandTrim);
+  } else if (tier >= 2) {
+    // Sleek sentinel leather V-harness across chest
     if (side) {
-      r(hx - 3.8, my - 0.6, 2.2, 1.3, "#e09c96");
+      trace([[x - 5.5, -24.5 + py], [x + 6.5, -17.5 + py]], ink, 3.4);
+      trace([[x - 5.2, -24.5 + py], [x + 6.2, -17.5 + py]], band, 1.8);
     } else {
-      r(hx - 8.4, my - 0.6, 2.2, 1.3, "#e09c96");
-      r(hx + 6.2, my - 0.6, 2.2, 1.3, "#e09c96");
+      trace([[x - 9.2, -24.5 + py], [x, -17.5 + py], [x + 9.2, -24.5 + py]], ink, 3.4);
+      trace([[x - 8.8, -24.5 + py], [x, -17.5 + py], [x + 8.8, -24.5 + py]], band, 1.8);
     }
-
-    // Prominent blunt glossy black diamond otter nose + cute mouth (centered in 3/4 muzzle)
-    const nx = hx + (side ? 4.4 : 0);
-    p("#241e24", [nx - 2.4, my - 3.2], [nx + 2.4, my - 3.2], [nx + 1.6, my - 1.0], [nx, my - 0.2], [nx - 1.6, my - 1.0]);
-    r(nx - 1.2, my - 3.0, 1.3, 0.9, "#899aa6");
-    r(nx - 0.4, my - 0.2, 0.8, 1.5, "#78574a");
-    r(nx - 2.0, my + 1.1, 4.0, 0.8, "#78574a");
-
-    // Clean short cream otter whiskers
-    for (const wy of [-1.2, 1.0]) {
-      if (side) {
-        r(mx + 6.2, my + wy, 3.2, 1.0, creamHi);
-        r(mx - 8.8, my + wy, 3.2, 1.0, creamHi);
-      } else {
-        r(mx + 7.4, my + wy, 4.4, 1.0, creamHi);
-        r(mx - 11.8, my + wy, 4.4, 1.0, creamHi);
-      }
-    }
-
-    // Crisp dark expressive bead eyes with white specular catchlight (3/4 asymmetric pair on side, just like rabbit-guard!)
-    const eyes: readonly [number, number][] = side
-      ? [[hx - 1.2, 2.8], [hx + 6.4, 2.0]]
-      : [[hx - 5.4, 2.8], [hx + 2.8, 2.8]];
-    for (const [ex, ew] of eyes) {
-      if (blink) {
-        r(ex - 0.3, hy - 1.2, ew + 0.6, 1.1, "#2a232b");
-      } else {
-        r(ex, hy - 3.2, ew, 3.6, "#2a232b");
-        r(ex + 0.4, hy - 2.8, Math.min(1.0, ew * 0.45), 1.2, creamHi);
-      }
-    }
-    // Determined brow only in combat poses
-    if (bracing || windup || striking) {
-      r(hx + (side ? -1.8 : -6.2), hy - 4.4, side ? 10.6 : 12.4, 1.2, ink);
-    }
-  } else {
-    r(hx - 4, hy - 6.5, 8, 1.8, furHi);
   }
 
-  // 5. Iconic clean wooden boat-paddle (distinctive flat oar silhouette + painted river-band)
-  const ox = side ? 11.5 : 10.5;
-  const idleSway = idle ? [0, 0.7, 0.3, -0.7, -0.3, 0][f] : 0;
+  if (tier >= 2) {
+    const colW = side ? 8.4 : 9.2;
+    p(ink, [x - colW, -25.2 + py], [x - 5.8, -27.4 + py], [x + 5.8, -27.4 + py], [x + colW, -25.2 + py], [x + 6.8, -22.4 + py], [x - 6.8, -22.4 + py]);
+    p(band, [x - colW + 1.2, -24.8 + py], [x - 5.0, -26.4 + py], [x + 5.0, -26.4 + py], [x + colW - 1.2, -24.8 + py], [x + 5.8, -23.2 + py], [x - 5.8, -23.2 + py]);
+    r(x - 4.8, -24.5 + py, 9.6, 1.0, bandTrim);
+  }
+
+  // 5. UNIFIED UPRIGHT OTTER HEAD (SAME height hy = -33.8 in Front, Side, and Back — sleek naturalistic Frost-Wolf proportions!)
+  const hx = x + headTurn + (side ? 1.5 : 0);
+  const hy = -33.8 + py + (sniffing ? 2.0 : checkingPaddle ? 1.0 : 0);
+  const earPin = windup || striking || bracing ? 1.2 : earFlick ? [0.8, -0.6, 1.2, 0][actionFrame] : 0;
+
+  if (side) {
+    // Far small round otter ear peeking at upper-front crown
+    p(ink, [hx - 1.0, hy - 6.8 + earPin], [hx + 2.8, hy - 9.4 + earPin], [hx + 5.6, hy - 6.6 + earPin], [hx + 2.2, hy - 4.6]);
+    p(shadow, [hx + 0.0, hy - 6.2 + earPin], [hx + 2.6, hy - 8.0 + earPin], [hx + 4.2, hy - 6.2 + earPin], [hx + 1.8, hy - 5.0]);
+
+    p(ink,
+      [hx - 9.6, hy + 2.0], [hx - 9.2, hy - 4.2], [hx - 5.2, hy - 8.2], [hx + 3.2, hy - 8.0],
+      [hx + 8.4, hy - 4.2], [hx + 10.2, hy - 0.6], [hx + 9.8, hy + 3.6], [hx + 6.6, hy + 6.4], [hx - 5.8, hy + 6.6]);
+    p(shadow,
+      [hx - 8.2, hy + 1.6], [hx - 7.8, hy - 3.6], [hx - 4.4, hy - 6.9], [hx + 2.8, hy - 6.7],
+      [hx + 7.0, hy - 3.2], [hx + 8.8, hy - 0.2], [hx + 8.4, hy + 2.8], [hx + 5.6, hy + 5.0], [hx - 4.8, hy + 5.2]);
+    p(coat,
+      [hx - 7.5, hy + 0.2], [hx - 7.2, hy - 3.4], [hx - 4.0, hy - 6.3], [hx + 2.8, hy - 6.1],
+      [hx + 6.6, hy - 3.0], [hx + 8.0, hy - 0.4], [hx + 5.6, hy + 2.8], [hx - 4.4, hy + 3.0]);
+    p(sheen, [hx - 4.8, hy - 4.0], [hx - 3.0, hy - 6.1], [hx + 2.2, hy - 5.9], [hx + 3.6, hy - 3.8], [hx - 1.0, hy - 3.2]);
+
+    if (tier >= 2) {
+      p(ink, [hx - 7.8, hy - 3.8], [hx - 4.2, hy - 6.6], [hx + 3.8, hy - 6.4], [hx + 7.6, hy - 3.8], [hx + 6.6, hy - 2.4], [hx - 6.6, hy - 2.4]);
+      p(band, [hx - 6.8, hy - 3.8], [hx - 3.8, hy - 5.8], [hx + 3.2, hy - 5.6], [hx + 6.6, hy - 3.8], [hx + 5.8, hy - 3.2], [hx - 5.8, hy - 3.2]);
+      r(hx + 2.0, hy - 5.8, 2.6, 2.0, fixedBank && mastery ? jade : copperHi);
+    }
+
+    p(creamShade, [hx - 3.8, hy + 1.4], [hx + 3.8, hy - 0.2], [hx + 8.8, hy + 0.4], [hx + 8.2, hy + 3.6], [hx + 5.4, hy + 5.4], [hx - 3.2, hy + 5.2]);
+    p(cream, [hx - 3.0, hy + 1.2], [hx + 3.8, hy + 0.0], [hx + 8.0, hy + 0.6], [hx + 7.4, hy + 2.8], [hx + 4.6, hy + 4.0], [hx - 2.2, hy + 3.8]);
+
+    p(ink, [hx + 6.8, hy - 1.4], [hx + 9.8, hy - 0.8], [hx + 9.4, hy + 1.6], [hx + 6.8, hy + 1.4]);
+    r(hx + 7.4, hy - 1.0, 1.2, 0.9, sheen);
+
+    // Crisp white whiskers
+    r(hx + 6.2, hy + 1.8, 4.8, 1.0, creamHi);
+    r(hx + 5.4, hy + 3.5, 4.4, 1.0, creamHi);
+
+    // Sharp Frost-Wolf-style dark-socket amber/jade eye
+    if (blink) {
+      r(hx + 0.6, hy - 2.0, 3.8, 1.1, ink);
+    } else {
+      p(ink, [hx - 0.2, hy - 3.2], [hx + 4.0, hy - 3.8], [hx + 5.4, hy - 1.8], [hx + 3.6, hy - 0.2], [hx + 0.4, hy - 0.6]);
+      r(hx + 1.6, hy - 2.8, 2.4, 1.6, eyeColor);
+      r(hx + 2.0, hy - 2.8, 1.0, 0.9, creamHi);
+    }
+
+    // Near small round otter ear clearly drawn ON TOP of upper-back skull
+    p(ink, [hx - 9.4, hy - 1.8 + earPin], [hx - 9.6, hy - 5.8 + earPin], [hx - 6.2, hy - 7.6 + earPin], [hx - 3.2, hy - 5.0 + earPin], [hx - 4.0, hy - 1.4 + earPin]);
+    p(coat, [hx - 8.0, hy - 2.4 + earPin], [hx - 8.0, hy - 5.2 + earPin], [hx - 5.8, hy - 6.2 + earPin], [hx - 4.4, hy - 4.6 + earPin], [hx - 5.0, hy - 2.2 + earPin]);
+    r(hx - 6.8, hy - 4.5 + earPin, 1.7, 1.7, "#c99b82");
+  } else {
+    // Front & Back head (exact same height & width as side!)
+    for (const d of [-1, 1]) {
+      const ex = hx + d * 8.2, ey = hy - 4.6 + earTwitch;
+      p(ink, [ex - 2.8, ey + 1.2], [ex - 3.0, ey - 2.2], [ex - 0.8, ey - 3.8], [ex + 1.8, ey - 3.6], [ex + 3.0, ey - 1.2], [ex + 2.4, ey + 1.6]);
+      p(coat, [ex - 1.8, ey + 0.5], [ex - 1.9, ey - 1.8], [ex - 0.4, ey - 2.8], [ex + 1.2, ey - 2.6], [ex + 1.9, ey - 0.8], [ex + 1.4, ey + 0.6]);
+      if (!back) r(ex - 0.7, ey - 1.7, 1.6, 1.6, sheen);
+    }
+
+    p(ink,
+      [hx - 9.8, hy + 1.8], [hx - 9.4, hy - 4.8], [hx - 5.8, hy - 8.8], [hx + 5.8, hy - 8.8],
+      [hx + 9.4, hy - 4.8], [hx + 9.8, hy + 1.8], [hx + 7.2, hy + 7.0], [hx - 7.2, hy + 7.0]);
+    p(shadow,
+      [hx - 8.5, hy + 1.4], [hx - 8.1, hy - 4.2], [hx - 4.8, hy - 7.5], [hx + 4.8, hy - 7.5],
+      [hx + 8.1, hy - 4.2], [hx + 8.5, hy + 1.4], [hx + 6.0, hy + 5.4], [hx - 6.0, hy + 5.4]);
+    p(coat,
+      [hx - 7.9, hy + 0.2], [hx - 7.3, hy - 4.0], [hx - 4.6, hy - 7.1], [hx + 4.6, hy - 7.1],
+      [hx + 7.3, hy - 3.8], [hx + 7.4, hy + 0.2], [hx + 4.4, hy + 4.1], [hx - 5.2, hy + 4.1]);
+    p(sheen, [hx - 5.4, hy - 4.4], [hx - 3.4, hy - 6.7], [hx + 2.8, hy - 6.7], [hx + 3.8, hy - 4.4], [hx - 1.2, hy - 3.6]);
+
+    if (tier >= 2) {
+      p(ink, [hx - 8.2, hy - 4.4], [hx - 4.8, hy - 7.0], [hx + 4.8, hy - 7.0], [hx + 8.2, hy - 4.4], [hx + 6.8, hy - 3.0], [hx - 6.8, hy - 3.0]);
+      p(band, [hx - 7.0, hy - 4.3], [hx - 4.2, hy - 6.0], [hx + 4.2, hy - 6.0], [hx + 7.0, hy - 4.3], [hx + 5.8, hy - 3.7], [hx - 5.8, hy - 3.7]);
+      r(hx - 1.4, hy - 6.3, 2.8, 2.0, fixedBank && mastery ? jade : copperHi);
+    }
+
+    if (!back) {
+      const my = hy + 3.0;
+      p(creamShade, [hx - 8.6, my - 1.2], [hx - 5.4, my - 3.8], [hx + 5.4, my - 3.8], [hx + 8.6, my - 1.2], [hx + 6.8, my + 4.0], [hx - 6.8, my + 4.0]);
+      p(cream, [hx - 7.8, my - 1.4], [hx - 4.8, my - 3.4], [hx + 4.8, my - 3.4], [hx + 7.8, my - 1.4], [hx + 5.8, my + 3.0], [hx - 5.8, my + 3.0]);
+      r(hx - 3.6, my - 2.8, 7.2, 1.8, creamHi);
+
+      p("#201c20", [hx - 2.6, my - 2.8], [hx + 2.6, my - 2.8], [hx + 1.8, my - 0.6], [hx, my + 0.2], [hx - 1.8, my - 0.6]);
+      r(hx - 1.2, my - 2.6, 1.4, 0.9, "#8e9ca6");
+      r(hx - 0.4, my + 0.2, 0.8, 1.4, "#6b4e42");
+      r(hx - 2.0, my + 1.4, 4.0, 0.8, "#6b4e42");
+
+      for (const wy of [-1.2, 1.1]) {
+        r(hx + 6.8, my + wy, 4.4, 1.0, creamHi);
+        r(hx - 11.2, my + wy, 4.4, 1.0, creamHi);
+      }
+
+      for (const d of [-1, 1]) {
+        const ex = hx + d * 4.5;
+        if (blink) {
+          r(ex - 1.8, hy - 1.4, 3.6, 1.1, ink);
+        } else {
+          p(ink, [ex - 2.0, hy - 3.0], [ex + 2.0, hy - 3.2], [ex + 2.2, hy - 0.4], [ex - 1.8, hy - 0.4]);
+          r(ex - 1.1, hy - 2.5, 2.2, 1.7, eyeColor);
+          r(ex - 0.7, hy - 2.5, 1.0, 0.9, creamHi);
+        }
+      }
+    } else {
+      r(hx - 4.0, hy - 6.2, 8.0, 1.8, sheen);
+    }
+  }
+
+  // 6. Sentinel Boat-Paddle Polearm (tall, proud upright halberd stance in idle/walk; dynamic windup/strike/brace!)
+  const idleSway = checkingPaddle ? [0, 2.0, 3.2, 1.4][actionFrame]
+    : idle ? [0, 0.6, 0.2, -0.6, 0.4, 0.8, -0.3, 0][f8]
+    : 0;
+  const idleLift = checkingPaddle ? [0, -1.0, -3.0, -1.2][actionFrame] : 0;
 
   if (windup) {
-    // Coiled overhead paddle raise
-    const tip: Point = [ox - 2, -10 + py];
-    const end: Point = [x - 15.5, -40 + py];
+    // Upright sentinel hoists paddle high behind shoulder
+    const tip: Point = [x + 8.5, -14 + py];
+    const end: Point = [x - 15, -39.5 + py];
     trace([tip, end], ink, 4.2);
     trace([tip, end], wood, 2.0);
     const [bx, by] = end;
-    p(ink, [bx - 6.5, by - 4.5], [bx + 2.5, by - 8.5], [bx + 7, by - 2], [bx + 2.5, by + 5.5], [bx - 5.5, by + 3.5]);
-    p(wood, [bx - 5, by - 3.5], [bx + 2, by - 7], [bx + 5.5, by - 1.5], [bx + 1.8, by + 4], [bx - 4.2, by + 2.5]);
-    p(bladeBand, [bx - 4.5, by - 3], [bx + 2, by - 6.2], [bx + 3.5, by - 2.2], [bx - 2.2, by + 0.5]);
+    p(ink, [bx - 6.4, by - 4.4], [bx + 2.4, by - 8.2], [bx + 6.8, by - 1.8], [bx + 2.4, by + 5.2], [bx - 5.4, by + 3.4]);
+    p(wood, [bx - 5.0, by - 3.4], [bx + 1.8, by - 6.8], [bx + 5.4, by - 1.4], [bx + 1.6, by + 4.0], [bx - 4.2, by + 2.4]);
+    p(bladeBand, [bx - 4.4, by - 3.0], [bx + 1.8, by - 6.0], [bx + 3.4, by - 2.0], [bx - 2.0, by + 0.5]);
   } else if (striking) {
-    // Fierce horizontal paddle cleave + clean luminous water-slash arc (clear of face)
-    const tip: Point = [x - 4, -13 + py];
-    const end: Point = [x + 24, -15 + py];
-    p("#54b3a480", [x + 11, -33 + py], [x + 25, -28 + py], [x + 30, -14 + py], [x + 21, -4 + py], [x + 18, -11 + py], [x + 22, -21 + py], [x + 13, -27 + py]);
-    trace([[x + 13, -30 + py], [x + 24.5, -24 + py], [x + 28.5, -14 + py], [x + 22, -7 + py]], bladeBand, 2.2);
-    trace([[x + 16, -27 + py], [x + 23.5, -21 + py], [x + 26.5, -14 + py]], creamHi, 1.1);
+    // Upright sentinel steps forward into a fierce horizontal paddle cleave + luminous water arc
+    const tip: Point = [x - 4, -17 + py];
+    const end: Point = [x + 22, -18 + py];
+    p("#54b3a480", [x + 12, -37 + py], [x + 26, -31 + py], [x + 31, -17 + py], [x + 22, -6 + py], [x + 19, -14 + py], [x + 23, -24 + py], [x + 14, -30 + py]);
+    trace([[x + 14, -34 + py], [x + 25.5, -27 + py], [x + 29.5, -17 + py], [x + 23, -9 + py]], bladeBand, 2.3);
+    trace([[x + 17, -30 + py], [x + 24.5, -24 + py], [x + 27.5, -17 + py]], creamHi, 1.2);
     trace([tip, end], ink, 4.2);
     trace([tip, end], wood, 2.0);
     const [bx, by] = end;
-    p(ink, [bx - 5.5, by - 5], [bx + 7.5, by - 5.8], [bx + 9.2, by], [bx + 6.5, by + 5.4], [bx - 5.5, by + 4.2]);
-    p(wood, [bx - 4.2, by - 3.8], [bx + 6.2, by - 4.4], [bx + 7.8, by], [bx + 5.2, by + 4], [bx - 4.2, by + 3]);
-    p(bladeBand, [bx + 2, by - 4], [bx + 6.2, by - 4.2], [bx + 7.4, by], [bx + 5, by + 3.6], [bx + 1.5, by + 3]);
+    p(ink, [bx - 5.5, by - 5.0], [bx + 7.5, by - 5.6], [bx + 9.2, by], [bx + 6.4, by + 5.2], [bx - 5.5, by + 4.0]);
+    p(wood, [bx - 4.2, by - 3.8], [bx + 6.2, by - 4.4], [bx + 7.8, by], [bx + 5.2, by + 4.0], [bx - 4.2, by + 3.0]);
+    p(bladeBand, [bx + 1.8, by - 4.0], [bx + 6.2, by - 4.2], [bx + 7.4, by], [bx + 5.0, by + 3.6], [bx + 1.4, by + 3.0]);
     r(bx + 2.8, by - 3.4, 3.6, 1.3, creamHi);
   } else if (bracing) {
-    // Planted diagonal breakwater paddle + crisp water ripple
-    const tip: Point = [ox + 15, -15.5 + crouch * 0.5];
-    const end: Point = [ox - 18.5, 0.8];
+    // Disciplined low upright sentinel plants paddle diagonally into mud with turquoise ripple
+    const tip: Point = [x + 17, -18 + crouch * 0.5];
+    const end: Point = [x - 16, 1.0];
     trace([tip, end], ink, 4.2);
     trace([tip, end], wood, 2.0);
     const [bx, by] = end;
-    p(ink, [bx - 10.5, by - 3.2], [bx - 3, by - 7.5], [bx + 6.5, by - 3.8], [bx + 6.5, by + 2.6], [bx - 2, by + 4], [bx - 10.5, by + 1.8]);
-    p(wood, [bx - 9, by - 2.2], [bx - 2.8, by - 6], [bx + 5, by - 2.8], [bx + 5, by + 1.4], [bx - 1.8, by + 2.6], [bx - 9, by + 0.8]);
-    r(bx - 8.6, by - 2.2, 3.2, 3.8, bladeBand);
+    p(ink, [bx - 10.2, by - 3.2], [bx - 2.8, by - 7.4], [bx + 6.5, by - 3.6], [bx + 6.5, by + 2.6], [bx - 1.8, by + 4.0], [bx - 10.2, by + 1.8]);
+    p(wood, [bx - 8.8, by - 2.2], [bx - 2.6, by - 5.8], [bx + 5.0, by - 2.8], [bx + 5.0, by + 1.4], [bx - 1.6, by + 2.6], [bx - 8.8, by + 0.8]);
+    r(bx - 8.4, by - 2.2, 3.2, 3.8, bladeBand);
     p("#5cb8aa", [bx - 12, by + 2.4], [bx - 2, by + 0.4], [bx + 8, by + 1.8], [bx + 2, by + 4.4], [bx - 9, by + 4]);
-    r(bx - 6.5, by + 1.2, 5.5, 1.2, creamHi);
+    r(bx - 6.4, by + 1.2, 5.5, 1.2, creamHi);
   } else {
-    // Upright boat-paddle held cleanly at side (instantly readable teardrop oar blade)
-    const tip: Point = [ox - 1.5, 2.5];
-    const end: Point = [ox + 3.5 + idleSway, -37 + bob];
+    // Upright sentinel halberd-grip (both Front idle & Side walk — tall, clean, unobstructed!)
+    const ox = side ? x + 11.8 : x + 11.4;
+    const tip: Point = [ox - 1.4, 2.5 + idleLift * 0.6];
+    const end: Point = [ox + 3.0 + idleSway + (side ? stepA * 1.0 : 0), -37.0 + bob + idleLift];
     trace([tip, end], ink, 4.0);
     trace([tip, end], wood, 2.0);
     trace([[tip[0] - 0.5, tip[1] - 0.5], [end[0] - 0.5, end[1] - 0.5]], woodHi, 0.9);
     const [bx, by] = end;
-    p(ink, [bx - 5.2, by - 7.5], [bx + 2.6, by - 9], [bx + 6.8, by - 4], [bx + 5, by + 4], [bx - 1, by + 6.2], [bx - 5.2, by + 1.2]);
-    p(wood, [bx - 3.8, by - 6.2], [bx + 2, by - 7.4], [bx + 5.2, by - 3.5], [bx + 3.8, by + 2.8], [bx - 0.8, by + 4.6], [bx - 3.8, by + 0.6]);
-    p(woodHi, [bx - 3.2, by - 5.8], [bx + 1.6, by - 6.8], [bx + 2, by + 2], [bx - 1, by + 3.4], [bx - 3.2, by + 0.2]);
-    // Crisp painted river-band across blade tip
-    r(bx - 3.2, by - 7.2, 6.2, 2.4, bladeBand);
-    r(bx - 2.2, by - 6.8, 3.2, 1.0, creamHi);
+    p(ink, [bx - 5.2, by - 7.4], [bx + 2.6, by - 8.8], [bx + 6.6, by - 4.0], [bx + 5.0, by + 4.0], [bx - 1.0, by + 6.0], [bx - 5.2, by + 1.0]);
+    p(wood, [bx - 3.8, by - 6.2], [bx + 2.0, by - 7.2], [bx + 5.0, by - 3.4], [bx + 3.8, by + 2.8], [bx - 0.8, by + 4.5], [bx - 3.8, by + 0.6]);
+    p(woodHi, [bx - 3.2, by - 5.8], [bx + 1.5, by - 6.6], [bx + 2.0, by + 2.0], [bx - 0.8, by + 3.4], [bx - 3.2, by + 0.2]);
+    r(bx - 3.2, by - 7.0, 6.0, 2.3, bladeBand);
+    r(bx - 2.2, by - 6.6, 3.2, 1.0, creamHi);
   }
 
-  // 6. Neat, soft rounded otter forepaw gripping paddle (no bulky black box)
-  const drawPaw = (pawX: number, pawY: number) => {
-    p(ink, [pawX - 3.4, pawY - 2.4], [pawX + 3.4, pawY - 2.4], [pawX + 3.6, pawY + 2.6], [pawX - 3.2, pawY + 2.6]);
-    p(fur, [pawX - 2.2, pawY - 1.4], [pawX + 2.2, pawY - 1.4], [pawX + 2.3, pawY + 1.5], [pawX - 2, pawY + 1.5]);
-    r(pawX - 1.4, pawY - 1.1, 2.0, 1.0, furHi);
+  // 7. Sentinel forepaws gripping paddle cleanly
+  const drawForePaw = (pawX: number, pawY: number) => {
+    p(ink, [pawX - 3.2, pawY - 2.4], [pawX + 3.2, pawY - 2.4], [pawX + 3.4, pawY + 2.5], [pawX - 3.0, pawY + 2.5]);
+    p(coat, [pawX - 2.0, pawY - 1.4], [pawX + 2.0, pawY - 1.4], [pawX + 2.2, pawY + 1.5], [pawX - 1.9, pawY + 1.5]);
+    r(pawX - 1.3, pawY - 1.0, 1.9, 1.0, sheen);
   };
   if (windup) {
-    drawPaw(ox - 2, -14.5 + py);
-    drawPaw(x - 5.5, -22 + py);
+    drawForePaw(x + 7.5, -15.5 + py);
+    drawForePaw(x - 3.5, -25.5 + py);
   } else if (striking) {
-    drawPaw(x + 8.5, -13.5 + py);
-    drawPaw(x + 1, -13 + py);
+    drawForePaw(x + 10.5, -17.0 + py);
+    drawForePaw(x + 2.5, -16.5 + py);
+  } else if (bracing) {
+    drawForePaw(x + 9.0, -13.5 + py * 0.7);
+    drawForePaw(x - 1.5, -8.5 + py * 0.7);
   } else {
-    drawPaw(ox + 0.5 + idleSway * 0.3, -14.5 + py);
-    if (bracing) drawPaw(ox - 8, -9 + py * 0.7);
+    const ox = side ? x + 12.0 : x + 11.6;
+    drawForePaw(ox + idleSway * 0.35 + (side ? stepA * 0.4 : 0), -16.5 + py + idleLift * 0.6);
   }
 };
 
@@ -1646,7 +1894,14 @@ export function saltCaster({ r, p, trace }: Art, tier: number, firing: boolean |
   const clayDeep = "#5e362c", clayMid = "#9c5942", clayLight = "#d18760";
   const glazeDeep = "#a89d8b", glazeMid = "#dcd4c0", glazeLight = "#f7f3e4", glazeHi = "#ffffff";
 
-  const lift = typeof firing === "number" ? firing : Number(firing);
+  // 10-keyframe smooth catapult throw cycle (phase ∈ [0, 1]; boolean true maps to launch frame 5)
+  const rawPhase = typeof firing === "number" ? firing : firing ? 0.55 : 0;
+  const phase = Math.max(0, Math.min(1, rawPhase));
+  // Keyframe index 0..9:
+  // 0: Ready | 1: Draw 1 | 2: Draw 2 | 3: Full tension | 4: Whip up
+  // 5: Release! | 6: Follow-through (empty) | 7: Recoil (empty) | 8: Reloading pot | 9: Settle
+  const kf = phase <= 0.02 ? 0 : Math.min(9, Math.max(1, Math.round(phase * 9)));
+  const springSqueeze = [0, 0.35, 0.72, 1.0, 0.3, 0, -0.1, 0.05, 0, 0][kf];
   const span = heavy || double ? 19 : 17.5;
   const deckY = -27;
 
@@ -1686,19 +1941,25 @@ export function saltCaster({ r, p, trace }: Art, tier: number, firing: boolean |
   if (tier >= 1) {
     p(out, [-19, -10], [-20, -22], [-15, -25], [-9, -24], [-9, -11], [-14, -9]);
     p(timberMid, [-17.8, -11], [-18.5, -21], [-14.5, -23.5], [-10, -23], [-10, -12], [-14, -10.2]);
-    p(clayMid, [-17, -21.5], [-16, -26], [-11, -26], [-10.5, -21.5]);
-    r(-16.5, -26.5, 5.5, 2, glazeLight);
+    // Spare pot dips briefly during reload frame (kf === 8) as it transfers to cradle
+    if (kf !== 8) {
+      p(clayMid, [-17, -21.5], [-16, -26], [-11, -26], [-10.5, -21.5]);
+      r(-16.5, -26.5, 5.5, 2, glazeLight);
+    }
     r(-18, -17, 8, 1.1, timberDeep);
     r(-17.5, -13.5, 7.5, 1.1, timberDeep);
   }
 
-  // 5. Tier 2+: Tall vertical coiled brass torsion springs flanking the upper shaft
+  // 5. Tier 2+: Tall vertical coiled brass torsion springs (visibly compress & gleam under draw tension!)
   if (tier >= 2) {
     const drawSpring = (sx: number) => {
-      p(out, [sx - 3.4, -14], [sx - 3.4, -31], [sx + 3.4, -31], [sx + 3.4, -14]);
-      p(brassDeep, [sx - 2.3, -15], [sx - 2.3, -29.8], [sx + 2.3, -29.8], [sx + 2.3, -15]);
-      for (const cy of [-28.5, -25, -21.5, -18]) {
-        r(sx - 2.1, cy, 4.2, 1.7, brassMid);
+      const topY = -31 + springSqueeze * 3.5;
+      p(out, [sx - 3.4, -14], [sx - 3.4, topY], [sx + 3.4, topY], [sx + 3.4, -14]);
+      p(brassDeep, [sx - 2.3, -15], [sx - 2.3, topY + 1.2], [sx + 2.3, topY + 1.2], [sx + 2.3, -15]);
+      const step = (15 + topY) / 4; // compress coils smoothly
+      for (let ci = 0; ci < 4; ci++) {
+        const cy = topY + 2.2 - ci * step;
+        r(sx - 2.1, cy, 4.2, 1.7, springSqueeze >= 0.7 ? brassLight : brassMid);
         r(sx - 1.7, cy, 2.2, 0.85, brassHi);
       }
     };
@@ -1719,21 +1980,47 @@ export function saltCaster({ r, p, trace }: Art, tier: number, firing: boolean |
   } else if (double) {
     p(out, [10, -10], [11, -22], [17, -24], [20, -19], [18.5, -10], [13, -9]);
     p(timberMid, [11.2, -11], [12, -21], [16.5, -22.5], [18.6, -18.5], [17.2, -11], [13.2, -10.2]);
-    r(12.5, -24, 5.2, 2, glazeLight);
+    if (kf !== 8) r(12.5, -24, 5.2, 2, glazeLight);
     r(11.8, -16, 6.8, 1.1, timberDeep);
   }
 
-  // 7. High-mounted throwing arm, brass pivot hub & glazed salt pot(s) (stays cleanly inside y >= -50)
-  const pivotX = -5, pivotY = deckY - 5;
-  const armY = -41 - Math.round(lift * 5);
-  const tipX = lift >= 0.85 ? 14 : 9.5;
-  trace([[pivotX - 4, pivotY + 7], [pivotX, pivotY], [tipX, armY + 4]], out, 7.2);
-  trace([[pivotX - 4, pivotY + 7], [pivotX, pivotY], [tipX, armY + 4]], timberMid, 4.4);
-  trace([[pivotX - 3.2, pivotY + 6], [pivotX - 0.6, pivotY - 0.6], [tipX - 1, armY + 3]], timberRim, 1.5);
+  // 7. High-mounted throwing arm with 10 continuous keyframes (draw -> full tension -> whip -> launch -> follow-through -> recoil -> reload)
+  const pivotX = -4.5, pivotY = deckY - 5;
+  // [tipX, tipY] arm end coordinates per keyframe (strictly inside y >= -44 so pots never clip y = -52!)
+  const armKeyframes: readonly [number, number][] = [
+    [9.5, -37.0],  // 0: Ready
+    [4.0, -35.8],  // 1: Draw 1 (pulling back)
+    [-3.5, -34.2], // 2: Draw 2 (deep pull)
+    [-9.5, -35.0], // 3: Full tension (max cocked back)
+    [2.0, -42.5],  // 4: Whip up (fast upward snap through apex)
+    [12.0, -42.8], // 5: Release! (launch point)
+    [15.8, -39.2], // 6: Follow-through (arm overshoots forward, empty)
+    [12.4, -40.8], // 7: Recoil (arm bounces slightly back, empty)
+    [10.2, -38.4], // 8: Reload 1 (returning & loading fresh pot)
+    [9.5, -37.2],  // 9: Reload 2 (pot settles into ready)
+  ];
+  const [tipX, tipY] = armKeyframes[kf];
+  // Counterweight butt end opposite the arm direction
+  const dx = tipX - pivotX, dy = tipY - pivotY;
+  const len = Math.hypot(dx, dy) || 1;
+  const buttX = pivotX - (dx / len) * 6.5;
+  const buttY = pivotY - (dy / len) * 6.5;
 
+  // Motion blur arc behind arm during fast whip & launch (kf 4 & 5)
+  if (kf === 4) {
+    trace([[-9, -36], [-4, -42], [2, -43]], "#e8c47466", 3.2);
+  } else if (kf === 5) {
+    trace([[-2, -42], [5, -45], [13, -43]], "#f7f3e488", 3.4);
+  }
+
+  trace([[buttX, buttY], [pivotX, pivotY], [tipX, tipY]], out, 7.0);
+  trace([[buttX, buttY], [pivotX, pivotY], [tipX, tipY]], timberMid, 4.2);
+  trace([[buttX, buttY - 0.6], [pivotX - 0.5, pivotY - 0.6], [tipX - 0.6, tipY - 0.6]], timberRim, 1.4);
+
+  // Brass pivot hub (brightens slightly at full tension kf=3)
   p(out, [pivotX - 5.5, pivotY - 3.5], [pivotX - 2.5, pivotY - 6], [pivotX + 2.5, pivotY - 6], [pivotX + 5.5, pivotY - 2.5],
     [pivotX + 4.8, pivotY + 3.5], [pivotX - 4.8, pivotY + 3.5]);
-  p(brassMid, [pivotX - 4, pivotY - 2.5], [pivotX - 1.8, pivotY - 4.5], [pivotX + 1.8, pivotY - 4.5], [pivotX + 4, pivotY - 1.8],
+  p(kf === 3 ? brassLight : brassMid, [pivotX - 4, pivotY - 2.5], [pivotX - 1.8, pivotY - 4.5], [pivotX + 1.8, pivotY - 4.5], [pivotX + 4, pivotY - 1.8],
     [pivotX + 3.2, pivotY + 2.2], [pivotX - 3.2, pivotY + 2.2]);
   r(pivotX - 1.8, pivotY - 2.6, 2.8, 2.8, brassHi);
 
@@ -1763,26 +2050,153 @@ export function saltCaster({ r, p, trace }: Art, tier: number, firing: boolean |
     }
   };
 
-  if (lift >= 0.85) {
-    p(out, [tipX - 5, armY + 1], [tipX + 5, armY + 1], [tipX + 4.5, armY + 6], [tipX - 4.5, armY + 6]);
-    p(brassMid, [tipX - 3.8, armY + 2], [tipX + 3.8, armY + 2], [tipX + 3.4, armY + 4.8], [tipX - 3.4, armY + 4.8]);
-    trace([[tipX + 1, armY + 1], [tipX + 5, armY - 1.5], [tipX + 9, armY - 3]], glazeMid, 1.6);
-    for (const [sx, sy] of [[tipX + 2, armY - 1], [tipX + 7, armY - 3], [tipX + 10, armY + 1]]) r(sx, sy, 2, 1.3, glazeHi);
-    drawSaltPot(tipX + 9, armY - 0.5, heavy ? 6.6 : 5.4, heavy ? 6.6 : 5.4, heavy);
-    if (double) drawSaltPot(tipX + 1, armY + 1.5, 4.5, 4.6, false);
-  } else {
-    p(out, [1, armY + 2], [17.5, armY + 2], [16, armY + 7.5], [2.5, armY + 7.5]);
-    p(brassMid, [2.4, armY + 3.2], [16.2, armY + 3.2], [14.8, armY + 6.2], [3.8, armY + 6.2]);
-    r(4, armY + 3.5, 9.5, 1.1, brassHi);
-    if (double) {
-      drawSaltPot(3.5, armY - 1, 6.2, 6.4, false);
-      drawSaltPot(13.5, armY - 3, 6.2, 6.4, false);
+  // Brass cradle cup mounted cleanly on the arm tip
+  const cupW = double ? 8.2 : 6.6;
+  p(out, [tipX - cupW, tipY - 1.8], [tipX + cupW, tipY - 1.8], [tipX + cupW - 1.4, tipY + 3.4], [tipX - cupW + 1.4, tipY + 3.4]);
+  p(brassMid, [tipX - cupW + 1.3, tipY - 0.8], [tipX + cupW - 1.3, tipY - 0.8], [tipX + cupW - 2.4, tipY + 2.2], [tipX - cupW + 2.4, tipY + 2.2]);
+  r(tipX - cupW + 2.2, tipY - 0.5, (cupW - 2.2) * 1.4, 1.1, brassHi);
+
+  // Pot & glaze trail by animation stage:
+  if (kf === 5) {
+    // Release! Salt pot launches cleanly out of the cradle with white salt-glaze streak & crystals
+    trace([[tipX + 1, tipY - 1], [tipX + 5.5, tipY - 3.5], [tipX + 9.5, tipY - 4.5]], glazeMid, 1.8);
+    for (const [sx, sy] of [[tipX + 2, tipY - 3.5], [tipX + 7, tipY - 5], [tipX + 10.5, tipY - 1]]) r(sx, sy, 2.0, 1.4, glazeHi);
+    drawSaltPot(tipX + 9.2, tipY - 2.0, heavy ? 6.4 : 5.4, heavy ? 6.4 : 5.4, heavy);
+    if (double) drawSaltPot(tipX + 1.5, tipY - 1.0, 4.6, 4.6, false);
+  } else if (kf === 6 || kf === 7) {
+    // Follow-through & recoil: empty cradle + dissipating white salt dust puffs
+    if (kf === 6) {
+      r(tipX + 3.5, tipY - 4.5, 2.4, 2.0, glazeLight);
+      r(tipX + 7.5, tipY - 2.5, 1.8, 1.6, glazeHi);
+      r(tipX + 1.0, tipY - 6.0, 1.6, 1.4, glazeMid);
     } else {
-      drawSaltPot(9, armY - 2, heavy ? 9.2 : 7.5, heavy ? 8.8 : 7.4, heavy);
+      r(tipX + 2.5, tipY - 3.5, 1.6, 1.4, glazeLight);
+    }
+  } else if (kf === 8) {
+    // Reloading: fresh pot popping smoothly down into the returning cradle
+    if (double) {
+      drawSaltPot(tipX - 4.2, tipY - 4.5, 5.4, 5.6, false);
+      drawSaltPot(tipX + 4.4, tipY - 6.0, 5.4, 5.6, false);
+    } else {
+      drawSaltPot(tipX, tipY - 5.2, heavy ? 8.2 : 6.8, heavy ? 7.8 : 6.6, heavy);
+    }
+  } else {
+    // Seated in cradle (Ready 0, Draw 1..3, Whip 4, Settle 9)
+    const seatY = kf === 4 ? -4.5 : kf === 3 ? -3.4 : kf === 9 ? -3.8 : -4.2;
+    if (kf === 3) {
+      // Subtle tension spark at full draw
+      r(tipX - 5.5, tipY - 6.5, 2.2, 1.4, brassHi);
+    }
+    if (double) {
+      drawSaltPot(tipX - 4.4, tipY + seatY + 0.6, 5.8, 6.0, false);
+      drawSaltPot(tipX + 4.6, tipY + seatY - 1.2, 5.8, 6.0, false);
+    } else {
+      drawSaltPot(tipX, tipY + seatY, heavy ? 8.8 : 7.2, heavy ? 8.4 : 7.0, heavy);
     }
   }
 }
 
 export function paintSaltCaster(r: Rect, p: Shape, tier: number, path: string | null = null, lift = 0) {
   saltCaster(artFor(r, p), path === "thick-glaze" ? 3 : path === "salt-rain" ? 4 : tier - 1, lift);
+}
+
+export interface SporePose {
+  readonly charge: number;
+  readonly release: number;
+}
+
+function sporeCaster({ r, p }: Art, form: number, pose: SporePose = { charge: 0, release: Infinity }) {
+  const out = "#252d2a";
+  const stoneDeep = "#354744", stoneMid = "#587069", stoneLight = "#8ba69a";
+  const timberDeep = "#45372b", timberMid = "#756044", timberLight = "#ad8c5e";
+  const brassDeep = "#635437", brassMid = "#a18a51", brassLight = "#d8c27d";
+  const podDeep = "#3f583d", podMid = "#6f9252", podLight = "#a9c975", podGlow = "#e1efa2";
+  const burst = form === 3, parasitic = form === 4;
+  const charge = Math.max(0, Math.min(1, pose.charge)) ** (burst ? .85 : parasitic ? 1.3 : 1.15);
+  const release = pose.release < .36
+    ? Math.exp(-pose.release * 10) * Math.cos(pose.release * 28) : 0;
+  const podWidth = 1 + charge * .22 + release * .12;
+  const podHeight = 1 + charge * .3 - release * .16;
+  const pod = (cx: number, bottom: number, rx: number, ry: number) => {
+    const px = (x: number) => cx + x * rx * podWidth;
+    const py = (y: number) => bottom - y * ry * podHeight;
+    p(out, [px(-1), py(0)], [px(-1.05), py(.78)], [px(-.72), py(1.15)],
+      [px(.72), py(1.15)], [px(1.05), py(.78)], [px(1), py(0)], [px(.65), py(-.18)], [px(-.65), py(-.18)]);
+    p(podDeep, [px(-.8), py(.15)], [px(-.85), py(.82)], [px(-.55), py(1.05)],
+      [px(.55), py(1.05)], [px(.85), py(.82)], [px(.8), py(.15)], [px(.5), py(-.05)], [px(-.5), py(-.05)]);
+    p(podMid, [px(-.64), py(.17)], [px(-.68), py(.78)], [px(-.4), py(.98)],
+      [px(.4), py(.98)], [px(.68), py(.78)], [px(.64), py(.17)], [px(.4), py(.03)], [px(-.4), py(.03)]);
+    p(podLight, [px(-.53), py(.2)], [px(-.55), py(.72)], [px(-.32), py(.9)],
+      [px(.05), py(.91)], [px(-.06), py(.8)], [px(-.28), py(.2)]);
+    r(px(-.27), py(.86), rx * podWidth * .44, ry * podHeight * .13,
+      charge > .72 ? "#f2f7c4" : podGlow);
+    r(px(-.14), py(.54), rx * podWidth * .28, ry * podHeight * .13,
+      charge > .45 ? podGlow : podLight);
+    r(px(.06), py(.25), rx * podWidth * .18, ry * podHeight * .13, podLight);
+  };
+  const span = burst ? 18 : parasitic ? 17 : 16;
+  p(out, [-span, 2], [-span + 2, -5], [-12, -9], [12, -9], [span - 2, -5], [span, 2], [span - 5, 6], [-span + 5, 6]);
+  p(stoneDeep, [-span + 2, 1], [-span + 5, -5], [span - 5, -5], [span - 2, 1], [span - 5, 4.5], [-span + 5, 4.5]);
+  p(stoneMid, [-span + 4, 0], [-span + 6, -4], [span - 6, -4], [span - 4, 0], [span - 7, 3], [-span + 7, 3]);
+  p(stoneLight, [-span + 5, -1.5], [-span + 7, -4], [1, -4], [-1, -2], [-span + 6, -1]);
+  for (const x of [-11, 8]) {
+    r(x, -2, 4, 1.2, stoneLight);
+    r(x + .7, -1, 2.5, .7, stoneDeep);
+  }
+  p(out, [-14, -5], [-10, -32], [10, -32], [14, -5], [9, 0], [-9, 0]);
+  p(timberDeep, [-11, -6], [-8, -31], [-4, -31], [-7, -6]);
+  p(timberMid, [-10.5, -7], [-7.7, -30], [-5.7, -30], [-8.2, -7]);
+  p(timberLight, [-10, -8], [-7.3, -29], [-6.4, -29], [-8.8, -8]);
+  p(timberMid, [4, -31], [8, -31], [11, -6], [7, -6]);
+  p(timberLight, [5.8, -30], [7.3, -30], [9.7, -8], [8, -8]);
+  p(timberDeep, [-8, -8], [8, -27], [8, -24], [-8, -5]);
+  p(timberMid, [8, -8], [-8, -27], [-8, -24], [8, -5]);
+  p(timberLight, [-7.5, -7], [7.5, -25.5], [7.5, -24.4], [-7.5, -5.9]);
+  for (const y of [-13, -23]) {
+    r(-11, y, 22, 2.3, brassDeep);
+    r(-10, y + .35, 13, .85, brassLight);
+  }
+  p(out, [-15, -29], [-15, -35], [-10, -39], [10, -39], [15, -35], [15, -29], [10, -25], [-10, -25]);
+  p(timberMid, [-13.5, -29], [-13, -34], [-9, -37], [9, -37], [13, -34], [13.5, -29], [9, -27], [-9, -27]);
+  p(brassMid, [-10, -30], [-8, -35], [8, -35], [10, -30], [7, -28], [-7, -28]);
+  r(-8, -34, 16, 1.2, brassLight);
+  pod(0, -35, 8.4, 14.8);
+  const crownLift = charge * .8 - release * .5;
+  p(brassDeep, [-8.5 - charge, -48 + crownLift], [-7 - charge * .5, -52 + crownLift],
+    [7 + charge * .5, -52 + crownLift], [8.5 + charge, -48 + crownLift], [6, -46], [-6, -46]);
+  p(brassMid, [-6.5 - charge * .6, -49 + crownLift], [-5.5, -50.5 + crownLift],
+    [5.5, -50.5 + crownLift], [6.5 + charge * .6, -49 + crownLift], [5, -47.5], [-5, -47.5]);
+  r(-2 - charge * .3, -51 + crownLift, 4 + charge * .6, 1.8, brassLight);
+  r(-6.8 - charge, -36.5, 13.6 + charge * 2, 2.2, brassDeep);
+  r(-5.8 - charge, -36.2, 11.6 + charge * 2, .9, charge > .72 ? "#f0db91" : brassLight);
+  if (form >= 1) {
+    p(out, [-16, -17], [-17, -28], [-13, -31], [-8, -29], [-8, -18], [-11, -15]);
+    p(timberMid, [-14.8, -18], [-15.2, -27], [-12.5, -29], [-9.8, -27.5], [-9.8, -19], [-12, -17]);
+    pod(-12, -19, 2.9, 8.5);
+    r(-15, -22.5, 6.5, 1.1, brassMid);
+  }
+  if (form >= 2) {
+    p(out, [9, -18], [9, -29], [12, -32], [17, -29], [17, -18], [13, -15]);
+    p(timberMid, [10.5, -18], [10.5, -27.5], [12.5, -30], [15, -27.5], [15, -18], [13, -17]);
+    pod(13, -19, 2.9, 8.5);
+    r(-7.2, -42.5, 14.4, 1.2, brassMid);
+    r(-5.5, -32.5, 11, 1.3, brassLight);
+  }
+  if (burst) {
+    p("#dbc27b", [-5.4, -45.5], [-2.2, -43.5], [-3.4, -41.8], [.2, -40.2], [-.6, -37.5], [1.2, -35.8], [2.4, -38.2], [5.2, -39.5], [3.2, -42], [4.8, -43.5], [1.2, -45.2], [.2, -47.2]);
+    r(-6.5, -34, 4, 2, "#caa45d");
+    r(3.5, -34, 4, 2, "#caa45d");
+  }
+  if (parasitic) {
+    p(podDeep, [-4, -32], [-5.5, -26], [-3.5, -22], [-1.5, -26], [-1.5, -32]);
+    p(podMid, [-3.5, -30], [-4.2, -26], [-3, -24], [-2.3, -27], [-2.3, -30]);
+    p(podDeep, [2, -32], [2.5, -25], [5, -23], [6, -27], [4.5, -32]);
+    p(podLight, [3.2, -29], [3.6, -25], [4.7, -24.5], [4.8, -27], [4, -30]);
+    r(-7, -46, 3, 1.2, podGlow);
+    r(4.5, -43.5, 2.5, 1.2, podGlow);
+  }
+}
+
+export function paintSporeCaster(r: Rect, p: Shape, tier: number, path: string | null = null, pose?: SporePose) {
+  sporeCaster(artFor(r, p), path === "burst-spores" ? 3 : path === "parasitic-spores" ? 4 : tier - 1, pose);
 }

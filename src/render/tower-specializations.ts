@@ -1,6 +1,9 @@
-import { paintSaltCaster } from "./mire-expansion-art.ts";
+import { paintSaltCaster, paintSporeCaster } from "./mire-expansion-art.ts";
+import type { SporePose } from "./mire-expansion-art.ts";
 import type { TowerId } from "../engine/types.ts";
 import { diamond, drawNetMesh, linePixels } from "./animation.ts";
+import { headingVector } from "../engine/formation.ts";
+import type { Heading } from "../engine/formation.ts";
 import { box } from "./canvas.ts";
 import { paintGlazeLance, paintHailMortar } from "./regional-tower-art.ts";
 import type { Rect, Shape } from "./pixel-sprite.ts";
@@ -15,10 +18,84 @@ interface SpecializationPose {
   charge: number;
   focus: number;
   rich: boolean;
+  heading: Heading;
+}
+
+export function drawSporeAttack(ctx: CanvasRenderingContext2D,
+  { x, y, beat, charge, age, heading, accent }: SpecializationPose,
+  path: string | null = null) {
+  if (charge > 0) {
+    const c = charge * charge;
+    const top = y - 43.5 - c * 1.5;
+    ctx.save();
+    box(ctx, x - 7 - c * 1.2, y - 36.5, 14 + c * 2.4, 1.4,
+      c > .72 ? "#f1d98a" : "#a58b50");
+    for (let i = 0; i < (path === "parasitic-spores" ? 8 : 6); i++) {
+      const gather = Math.max(0, Math.min(1, charge * 1.45 - i * .12));
+      if (!gather) continue;
+      const angle = beat * (path === "parasitic-spores" ? 6.5 : 4.2) + i * 2.399;
+      const radius = (1 - gather) * (path === "parasitic-spores" ? 14 : 10);
+      ctx.globalAlpha = gather * (.45 + c * .5);
+      diamond(ctx, x + Math.cos(angle) * radius,
+        top + Math.sin(angle) * radius * .55, .65 + gather * .65,
+        i % 3 ? accent : "#f0f5c1");
+    }
+    ctx.restore();
+  }
+  if (age >= .3) return;
+  const t = age / .3;
+  const fade = 1 - t;
+  const [hx, hy] = headingVector(heading);
+  const angle = Math.atan2(hy, hx);
+  const top = y - 43.5;
+  const burst = path === "burst-spores";
+  ctx.save();
+  if (age < .075) {
+    ctx.globalAlpha = fade * .95;
+    diamond(ctx, x, top, burst ? 4.2 : 2.8, "#f5f8d7");
+    diamond(ctx, x + hx * 2, top + hy * 2, burst ? 2.2 : 1.4, accent);
+  }
+  ctx.globalAlpha = fade;
+  const count = burst ? 10 : path === "parasitic-spores" ? 7 : 6;
+  for (let i = 0; i < count; i++) {
+    const spread = (i / (count - 1) - .5) * (burst ? 2.8 : 1.7);
+    const a = angle + spread;
+    const speed = (burst ? 38 : 25) + i % 3 * 5;
+    const d = age * speed;
+    const px = x + Math.cos(a) * d;
+    const py = top + Math.sin(a) * d * .62 + age * age * 15;
+    const tail = Math.max(1.5, 5 * fade);
+    linePixels(ctx, px - Math.cos(a) * tail, py - Math.sin(a) * tail * .62,
+      px, py, i % 2 ? "#bedb82" : accent, .8, .8);
+    diamond(ctx, px, py, burst ? 1.25 : .9, i % 3 ? accent : "#edf4b6");
+  }
+  if (path === "parasitic-spores") {
+    ctx.globalAlpha = fade * .8;
+    for (const side of [-1, 1]) {
+      const reach = age * 23;
+      for (let i = 1; i <= 5; i++) {
+        const p = i / 5;
+        linePixels(ctx,
+          x + hx * reach * p - hy * side * Math.sin(p * Math.PI) * 5,
+          top + hy * reach * p * .5 + hx * side * Math.sin(p * Math.PI) * 5,
+          x + hx * reach * (p + .2) - hy * side * Math.sin((p + .2) * Math.PI) * 5,
+          top + hy * reach * (p + .2) * .5 + hx * side * Math.sin((p + .2) * Math.PI) * 5,
+          "#b6d995", 1, .9);
+      }
+    }
+  }
+  if (burst && age < .18) {
+    ctx.globalAlpha = (1 - age / .18) * .65;
+    for (const side of [-1, 1]) {
+      box(ctx, x + side * (5 + age * 24), y - 3 - age * 8, 2.5, 1.5, "#b8c78c");
+      box(ctx, x + side * (8 + age * 30), y - 1 - age * 5, 1.8, 1.2, "#72845e");
+    }
+  }
+  ctx.restore();
 }
 
 interface SpecializationArt {
-  body: (r: Rect, p: Shape) => void;
+  body: (r: Rect, p: Shape, pose?: SporePose) => void;
   animate: (ctx: CanvasRenderingContext2D, pose: SpecializationPose) => void;
 }
 
@@ -26,6 +103,22 @@ export const SPECIALIZATION_ART: Record<TowerId, Readonly<Record<string, Special
   "salt-caster": {
     "thick-glaze": { body: (r, p) => paintSaltCaster(r, p, 4, "thick-glaze"), animate() {} },
     "salt-rain": { body: (r, p) => paintSaltCaster(r, p, 4, "salt-rain"), animate() {} },
+  },
+  "spore-caster": {
+    "burst-spores": {
+      body: (r, p, pose) => paintSporeCaster(r, p, 4, "burst-spores", pose),
+      animate(ctx, pose) {
+        if (!pose.rich) return;
+        drawSporeAttack(ctx, pose, "burst-spores");
+      },
+    },
+    "parasitic-spores": {
+      body: (r, p, pose) => paintSporeCaster(r, p, 4, "parasitic-spores", pose),
+      animate(ctx, pose) {
+        if (!pose.rich) return;
+        drawSporeAttack(ctx, pose, "parasitic-spores");
+      },
+    },
   },
   net: {
     sinker: {

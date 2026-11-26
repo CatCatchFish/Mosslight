@@ -12,8 +12,12 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(TapAntiAddictionPlugin.class);
+        registerPlugin(TapDBPlugin.class);
+        registerPlugin(TapReviewPlugin.class);
         super.onCreate(savedInstanceState);
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
+        }
         Window window = getWindow();
         WindowCompat.setDecorFitsSystemWindows(window, false);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

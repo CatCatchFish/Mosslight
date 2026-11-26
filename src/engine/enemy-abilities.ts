@@ -46,6 +46,11 @@ export function canNet(enemy: Enemy) {
 
 export function groundWithNet(enemy: Enemy, seconds: number) {
   if (!canNet(enemy)) return;
+  const passenger = enemy.passenger;
+  if (passenger?.carriedBy === enemy) {
+    passenger.carriedBy = undefined;
+    enemy.passenger = undefined;
+  }
   enemy.netUntil = enemy.age + seconds;
   enemy.netImmuneUntil = enemy.netUntil + NET_IMMUNITY;
 }
@@ -205,7 +210,7 @@ export function updateEnemyActions(
                 dist2(ally.x, ally.y, enemy.x, enemy.y) > screen.radius ** 2) continue;
             ally.screen = { until: ally.age + screen.duration, strength: screen.strength };
           }
-          effects.push({ kind: "enemy-ward", x: enemy.x, y: enemy.y, color, radius: screen.radius, life: 0.55, total: 0.55 });
+          effects.push({ kind: "enemy-ward", enemy: enemy.type, x: enemy.x, y: enemy.y, color, radius: screen.radius, life: 0.55, total: 0.55 });
         }
       }
       enemy.action = openFor >= 0 ? { phase: "exposed", progress: openFor / ability.cooldown } : undefined;
@@ -314,6 +319,7 @@ export function updateEnemyActions(
       if (reachedAlly)
         effects.push({
           kind: rally ? "enemy-rally" : "enemy-ward",
+          enemy: enemy.type,
           x: enemy.x,
           y: enemy.y,
           color: rally

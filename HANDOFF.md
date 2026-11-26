@@ -1,6 +1,6 @@
 # 微光防线 · 项目交接文档
 
-**最后更新：2026-11-23｜已发布版本：`v1.0.0`（`versionCode=25`）；源码另含已接入 TapSDK 的调试包（未发版）**
+**最后更新：2026-11-26｜已归档测试包：`v1.1.3`（`versionCode=34`，普通闯关版 + 全解锁开发者版）**
 
 这是一个离线单机像素塔防游戏，使用原生 HTML / CSS / TypeScript / Canvas，Vite 构建 Web 资源，Capacitor 封装 Android。**运行时行为以代码、关卡配置和自动回归测试为准。**
 
@@ -12,28 +12,138 @@
 
 - **主线进度**。18 站均可正式通关。第五章「瘴雾毒沼」覆盖第 13–18 关，第 18 关终波为沉堤泽蛟。
 - **防御体系**。11 种射击塔与 4 种拦截建筑。全局编队最多编入 5 种，关卡按自身解锁范围筛选。第 14 关开放苇篷哨舍，第 15 关开放盐釉投罐塔。
-- **验证状态**。123 项自动测试通过，Web 构建成功。Vite 仍提示主包超过 500 kB。
-- **打包状态**：`v1.0.0` 已构建并通过签名校验，签名证书与 v0.7.1 一致。本地归档为 `outputs/glimmer-defense-1.0.0-debug.apk`。
-- **本机开发入口**：`npm run dev` 启动本地服务；除游戏本体外，还内置了三套像素/动作调试预览页（见第 4 节）。
+- **验证状态**。153 项自动测试通过，TypeScript 检查、Web 构建与 Android Debug 双包构建成功。Vite 仍提示主包超过 500 kB。
+- **打包状态**：普通闯关版为 `outputs/glimmer-defense-1.1.3-debug.apk`；全解锁开发者版为 `outputs/glimmer-defense-1.1.3-debug-unlocked.apk`。两个包均为 Debug 签名，开发者版禁止发布。
+- **正式上线状态**：当前仍是测试包，**不能正式上线/商业变现**：无 ISBN/版号、防沉迷已移除、APK 为 Debug 签名，且隐私政策运营者需与 TapTap 认证主体一致。
+- **本机开发入口**：`npm run dev` 启动普通模式，`npm run dev:unlocked` 启动全解锁调试模式；除游戏本体外，还内置了三套像素/动作调试预览页（见第 4 节）。
 
 ---
 
 ## 2. 最新已完成变更
 
+### v1.1.3 测试包（2026-11-26）
+
+- 普通闯关版：`v1.1.3` / `versionCode=34`，约 35 MB，SHA-256 `27f617d4230d5d8b54c4403570bd64070746ad52d920486ba2d7416b232267b8`。[glimmer-defense-1.1.3-debug.apk](outputs/glimmer-defense-1.1.3-debug.apk)
+- 开发者全解锁版：`versionCode=34`，约 35 MB，SHA-256 `a2d66ea1291ca4b8526994f22f8b05f35436ac7f7e8e6fa51de151a489860f53`。[glimmer-defense-1.1.3-debug-unlocked.apk](outputs/glimmer-defense-1.1.3-debug-unlocked.apk)
+- 本版包含隐私审核修复、怪物技能音效与描述对齐、暂停/后台切出时等待存档队列落盘；两个包均为 Debug 签名，不是商店 Release 包。
+- 验证：153 项测试及 Web/Android Debug 构建通过。
+
+### 隐私审核修复（2026-11-25）
+
+- 首启同意页与隐私政策均已明确列出 OAID，并说明 AndroidID、OAID、GID、TDID 等标识仅用于设备去重、安装和统计，不用于广告定向。
+- 首启必须勾选“我已阅读并同意隐私政策，并知悉收集 AndroidID、OAID 与 SDK 设备标识”后，“同意并启用”按钮才可用；弹窗固定从顶部开始显示，焦点落在勾选框，不再自动滚到正文中段。
+- TapTap 评价入口不再自行初始化 SDK：只有统计同意生效且 TapSDK 初始化成功后才可打开；评价提示也仅在已授权后出现。
+- TapDB 初始化已启用 `disableReflectionOAID(true)`，关闭 OAID 反射读取；同时保留兼容性要求的明示披露。
+- 本地隐私政策已参考线上协议的章节结构，补充定义、存储与安全保护、共享/转让/公开披露及法定例外、Cookie/广告、用户权利、未成年人、政策更新和完整联系方式；删除了线上模板中不符合实际的“必须注册账号”“一律视为同意”等条款。
+- 真机验证（前序同源构建）：未授权冷启动日志只有 TapDB 插件注册，没有 TapSDK / OpenLog / OAID 读取；勾选确认后按钮才启用，同意后才初始化 SDK。最终 `disableReflectionOAID` 构建在设备断开前未完成安装复核。
+- 验证：151 项测试、TypeScript、Web 构建及 Android Debug 双包构建通过。审核重提必须上传本次新 MD5 的普通包，并同步线上隐私政策。
+
+### v1.1.2 测试包（2026-11-25）
+
+- 普通闯关版：`v1.1.2` / `versionCode=33`，约 35 MB，SHA-256 `577aca6a686ffadb4a92808ed758efb9b018028be58f77d76451215d754d3f61`。[glimmer-defense-1.1.2-debug.apk](outputs/glimmer-defense-1.1.2-debug.apk)
+- 开发者全解锁版：`versionCode=33`，约 36 MB，SHA-256 `4fcdb480205913c5ebc9e0fbb0eed740a24c7bbd14ff816298dfae869164edea`。[glimmer-defense-1.1.2-debug-unlocked.apk](outputs/glimmer-defense-1.1.2-debug-unlocked.apk)
+- 本版包含：TapDB 匿名统计与内置隐私政策；盐釉投罐塔、孢匣塔可对空；孢子可传播给空中目标；沼蛾同批载鱼、缚网或母蛾死亡释放；设置页移除统计开关；水獭待机统一正面。
+- 隐私审核修复：首启显式勾选确认 OAID/AndroidID 与隐私政策；TapTap 评价入口仅在数据授权开启且 SDK 初始化完成后可用，不再自行初始化 SDK；TapDB 已关闭 OAID 反射读取。
+- 验证：151 项测试及 Web/Android Debug 构建通过；两个 APK 签名 MD5 均为 `fbfb01bc39311e4668366a941762372d`。两个包均为 Debug 签名，不是商店 Release 包；前序同源构建已完成真机未授权/勾选/同意链路验证，最终 OAID 关闭构建待重连复核。
+
+### v1.1.1 测试包（2026-11-25）
+
+- APK：`v1.1.1` / `versionCode=32`，约 17 MB，SHA-256 `a7a9a1ffb1534e26dc42c9d84b769b34caad362ec849c06621f800927962dec3`。[APK](outputs/glimmer-defense-1.1.1-debug.apk)
+- 内容：新增孢匣塔及蓄力攻击；第 17 关终波加入腐冠瘴母，可扎根孵化活体孢囊、持续获得治疗，孢囊被击破后毒爆连锁；既有天赋、天气、闯关制与隐私政策入口保留。
+- 验证：136 项测试、TypeScript 检查、Web 构建与 Android Debug 打包全部通过；签名证书 MD5 保持 `fbfb01bc39311e4668366a941762372d`。
+
+### 毒沼塔对空调整（2026-11-25，源码）
+
+- 盐釉投罐塔与孢匣塔已移除 `groundOnly`：两者现在可索敌并命中空中单位，盐雨分罐、投罐溅射和孢匣持续伤害均对空生效。
+- 孢子传播不再排除飞行目标：地面毒孢宿主倒地后可传播给附近的空中敌人，反之亦然。
+- 塔描述同步改为“溅射 / 毒孢”，分罐盐雨改为“两个不同目标”；设计文档已去掉“仅对地”。
+- 验证：`mire-expansion.test.ts` 覆盖盐雨命中空中目标、孢匣对空 DoT、地面宿主向空中传播，以及沼蛾入场配对、缚网释放和母蛾死亡放客；全量 151 项测试通过。
+- 之前的归档 APK 早于本调整；如需真机验证或分发，需重新执行打包命令。沼蛾运载已简化为：同批弹涂鱼入场即附着，乘客在母蛾存活期间不可被单独攻击；缚网命中会立即释放乘客，否则只有母蛾被击落才放下载客；纯空中波次不带乘客。
+
+### TapDB v4 接入（2026-11-25，源码接入完成）
+
+- Android 使用 `com.taptap.sdk:tap-core:4.11.1` 与自定义 Capacitor 插件 `TapDBPlugin`；仅添加网络、网络状态权限，不接入 TapTap 登录、支付或电话状态权限。
+- 首启独立保存统计同意状态；拒绝不初始化 SDK，设置内可撤回。原生层和前端层均对未同意、初始化失败或凭据缺失的事件上报做门禁。
+- 统计账号使用本机持久化的随机匿名安装 ID，不要求玩家注册或登录；SDK 就绪且已同意后调用 `TapTapEvent.setUserId`，撤回时调用 `clearUser`，再次同意后复用同一匿名 ID。
+- 埋点：`stage_start`、`stage_result`、`tower_build`、`tower_upgrade`、`loadout_save`、`talent_upgrade`、`talent_reset`；原生层按白名单过滤事件和属性。
+- Client ID / Token 不写入仓库。构建时通过环境变量 `TAPDB_CLIENT_ID`、`TAPDB_CLIENT_TOKEN`、`TAPDB_REGION=CN`（或 `GLOBAL`）提供，也可写入当前 `GRADLE_USER_HOME/gradle.properties`；留空时插件返回 `unconfigured`，不会初始化或上报。
+- 隐私政策正文直接内置并复用 `docs/privacy-policy.html`；首启同意页和系统设置均打开游戏内可滚动弹窗，不再跳转浏览器。正文已补充 TapSDK 运营主体、实际数据字段与用途、存储与保留、用户删除渠道、未满 14 周岁监护人同意及撤回后的停止处理说明。线上地址 `https://www.xieyimao.com/doc/detailzh/token/1795569792_5229` 仅供商店/备案使用，仍需另行同步更新。
+- 验证（接入时）：145 项测试、TypeScript 检查、Web 与 Android Debug 构建通过；本地政策弹窗已在 960×540 横屏视口验证可滚动、可关闭且 URL 不发生跳转。正式 Debug APK SHA-256 `31d3158a9d6c0329c67f05e8fd3cc0335e9c6274354d4b17212201f459f7f51d`。
+- 真机验证（2026-11-25，vivo V2509A / Android 17）：覆盖安装成功，存档、星级和编队保留；“设置”已无数据统计开关，隐私政策底部可撤回/重新开启。`configured=true`、`state=ready`，匿名安装 ID 重启后复用；撤回时用户标识清空，重新开启后恢复；`stage_start` 已进入原生命令，未发现崩溃。TapTap 后台数据到达仍需登录后台核对。
+- **后续 TapDB 联调待办**：
+  1. 在 TapTap 后台核对包名 `com.mosslight.expedition` 与证书 MD5 `fbfb01bc39311e4668366a941762372d`；不一致会导致初始化 `1001 CONFIG_ERROR`。
+  2. 已真机确认：覆盖安装保留存档，首启同意后 `state=ready`，匿名安装 ID 设置成功并在冷启动后复用。
+  3. `stage_start` 已确认从 WebView 进入原生 `logEvent`；仍需在 TapTap 后台确认事件实际到达，并补测建造/升级和结算事件。
+  4. TapTap 后台“游戏营收模式”应改为“无”，因为游戏没有广告；否则“上报广告展示事件”会成为无意义的必选未完成项。
+  5. 将本地 [隐私政策](docs/privacy-policy.html) 同步到线上地址 `https://www.xieyimao.com/doc/detailzh/token/1795569792_5229` 或新的托管地址，并更新 TapTap 后台；游戏内已不依赖该 URL。
+  6. 已真机确认撤回/重新开启：撤回后 `setConsent(false)` 并清空用户标识，重新开启后复用同一安装 ID；完全停止 SDK 自动数据仍需彻底结束进程。
+- 主要入口：[TapDBPlugin.java](android/app/src/main/java/com/mosslight/expedition/TapDBPlugin.java)、[analytics.ts](src/platform/analytics.ts)、[analytics-consent.ts](src/platform/analytics-consent.ts)、[build.gradle](android/app/build.gradle)、[隐私政策](docs/privacy-policy.html)。
+
+### 开发者全解锁调试包（2026-11-25）
+
+- 用 `npm run apk:debug-unlocked` 生成；只使用 Vite 的 `debug-unlocks` 模式。正常 `npm run build`、`npm run apk:debug` 和发布包不会启用。
+- 调试存档使用独立键 `mosslight-expedition.debug-save.v1`：首次读取时复制现有正式存档并注入当前全部 18 关三星，之后调试写入也只落在调试键；正式存档键 `mosslight-expedition.save` 不会被修改或覆盖。
+- 全三星提供 54 颗星，足够点亮全部营地加护；地图显示“调试版 · 全关卡三星”徽标，页面标题以“【调试·全解锁】”开头，便于区分。
+- 新增回归：`tests/debug-build.test.ts` 覆盖全关三星、营地加护预算及正式存档隔离。浏览器验证解锁模式为 18/18 关、54 星，普通模式仍只开放首关。
+- 调试 APK：[glimmer-defense-1.1.1-debug-unlocked.apk](outputs/glimmer-defense-1.1.1-debug-unlocked.apk)，SHA-256 `e6a212b36ec625ed7d59791ff344b45e64a2b88755c0c1cce54bef8078f19c79`。调试包不能用于发布；正式构建已随后恢复。
+
+### v1.1.0 测试包（2026-11-24）
+
+- APK：`v1.1.0` / `versionCode=31`，约 16 MB，SHA-256 `f5b38df0be80b401de360af11a4a7301dd40b4f14bf2daa3452734366aac5de6`。[APK](outputs/glimmer-defense-1.1.0-debug.apk)
+- 内容：新增星辉天赋（6 条路线、可重置、存档兼容）；恶劣天气实际影响射速/射程/怪速/减伤；14–18 关数量与基础/强化怪血量分层；闯关制与隐私政策入口保留。
+- 验证：125 项测试通过，包含天赋、天气、存档与第 14 关三星回归；重新打包纳入本轮 bug 修复。
+
+### v1.0.5 测试包（2026-11-24）
+
+- APK：`v1.0.5` / `versionCode=30`，约 16 MB，SHA-256 `5db994857b69a8f85f29a22479a0c8d3c913b3afb65f36958f571fb00fbcac3e`。[APK](outputs/glimmer-defense-1.0.5-debug.apk)
+- 内容：隐私政策链接改为 `https://www.xieyimao.com/doc/detailzh/token/1795486541_9267`；14–18 关第 3 波起普通怪数量约 +10%，基础怪血量 ×1.15、强化怪 ×1.22，毒沼三种小 Boss 生命与减速抗性上调。
+- 验证：122 项测试通过；第 13、14 关三星计划仍通过；安装包不含 TapSDK/网络权限。
+
+### v1.0.4 测试包（2026-11-23）
+
+- APK：`v1.0.4` / `versionCode=29`，约 16 MB，SHA-256 `a1b740f8156fe4727d5bfe3f859b01599da0735616e8adc02ad9b6fe83076f83`。[APK](outputs/glimmer-defense-1.0.4-debug.apk)
+- 内容：系统设置新增“隐私政策”，点击后用系统浏览器打开 `https://tapgame-glimmer-privacy.animatedrobin4.chatgpt.site`；移除未使用的网络权限；无防沉迷、无账号，闯关制与解锁动画保留。
+- 验证：122 项测试通过；真机点击隐私政策成功打开 Chrome 并加载政策页面。
+
+### v1.0.3 测试包（2026-11-23）
+
+- APK：`v1.0.3` / `versionCode=28`，约 16 MB，SHA-256 `d238e79e5179acdf166f547b64804718a572f8cfdd3d659d8fdab17fd10b9396`。[APK](outputs/glimmer-defense-1.0.3-debug.apk)
+- 内容：移除 TapTap SDK、原生插件、启动门禁、防沉迷截图/凭据依赖；保留闯关制地图与解锁动画。启动直接进入地图，无登录/实名流程。
+- 验证：122 项测试通过；真机覆盖安装后旧存档与当前进度保留。
+
+### v1.0.2 审核测试包（2026-11-23）
+
+- APK：`v1.0.2` / `versionCode=27`，约 35 MB，SHA-256 `f6fba1513d2ee750da6fa9e83c8f844e3c4709668392953185a432f317ecbdd8`。[APK](outputs/glimmer-defense-1.0.2-debug.apk)
+- 内容：在 v1.0.1 的 TapSDK 接入基础上加入闯关制地图：只显示当前进度及下一站，清关后探路者沿小径走到新站点并播放节点/区域解锁动画；125 项测试通过。
+- 防沉迷材料已随 v1.0.3 退场，原视频/截图归档在 `TapGame-backups/anti-addiction-assets-20261123/`。
+- **风险**：首次启动隐私政策同意页仍未实现，提交审核可能被驳回。
+
+### v1.0.1 审核测试包（2026-11-23）
+
+- APK：`v1.0.1` / `versionCode=26`，约 35 MB，SHA-256 `9ab5c15c053c6f61095043f96747554ee8f77f72579b1c83d4289f41ed76dc96`。[APK](outputs/glimmer-defense-1.0.1-debug.apk)
+- 内容：接入 TapSDK 4.11.1，真机验证 TapTap 登录、`500` 放行与冷启动复用登录态；125 项测试通过。
+- **风险**：首次启动隐私政策同意页尚未实现，当前启动即初始化 TapSDK；提交审核可能被驳回。
+
 ### v1.0.0 正式版
 
 - APK：`v1.0.0` / `versionCode=25`，约 16 MB，SHA-256 `a2f6396464d1414287dc59ea26c4f0e22561c74a564031f0029913fc1809dd90`，签名证书与 v0.7.1 一致。本地归档为 `outputs/glimmer-defense-1.0.0-debug.apk`。
-- 汇总纳入：18 关完整战役、11 种射击塔 + 4 种拦截建筑、雪天景物积雪与纯射速减益、全塔伤害/间隔调整、普通怪物 50% 减速上限、完整战斗/环境/景物/Boss 音效、路线引导保留与毒沼显示修复、123 项自动测试。
+- 汇总纳入：18 关完整战役、11 种射击塔 + 4 种拦截建筑、雪天景物积雪与纯射速减益、全塔伤害/间隔调整、普通怪物 50% 减速上限、完整战斗/环境/景物/Boss 音效、路线引导保留与毒沼显示修复、当前源码 125 项自动测试。
 - 商店素材：`outputs/store/` 已准备图标 512/1024、1920×1080 封面、1024×500 横幅、六张实机截图、宣传片和实机录屏。
 
-### TapTap 防沉迷适配层（SDK 已接入，未正式发版）
+### 星辉天赋与天气实战效果（v1.1.0）
 
-- TS 统一接口与 Capacitor 桥接：[src/platform/anti-addiction.ts](src/platform/anti-addiction.ts)；启动门禁与登录/限制 UI：[src/ui/anti-addiction.ts](src/ui/anti-addiction.ts)。
-- Android 原生适配器：[TapAntiAddictionPlugin.java](android/app/src/main/java/com/mosslight/expedition/TapAntiAddictionPlugin.java)，已改为直接调用 TapSDK 4.11.1（不再反射），并在 [MainActivity.java](android/app/src/main/java/com/mosslight/expedition/MainActivity.java) 注册；Manifest 含 `INTERNET` 与 `ACCESS_NETWORK_STATE`。
-- 凭据通过 `local.properties` 的 `taptap.clientId` / `taptap.clientToken` 注入 `BuildConfig`，由各开发机自行配置；`tap-core`、`tap-login`、`tap-compliance:4.11.1` 已启用并从 Maven Central 解析到 `work/gradle` 离线缓存。
-- 初始化遵循 TapSDK 异步流程：`TapTapSdk.addInitCallback` 成功后才注册合规回调并放行登录；`TapTapLogin.getCurrentTapAccount()` 无账号时返回 `1001`；合规回调 `500` 放行，`1000/1001` 清理本地登录态，`1030/1050/1100` 阻止，`9002/1200` 重试。
-- 已生成含 SDK 的调试包：`android/app/build/outputs/apk/debug/app-debug.apk`，约 36 MB，SHA-256 `5d55fa77a51e03922dfce40b52cd87e54a4417ee84bc462718dcd590bea57d21`；仍为 `versionCode=25` / `versionName=1.0.0`，签名证书 MD5 `fbfb01bc39311e4668366a941762372d`。
-- 待办：TapTap 开发者中心配置包名 `com.mosslight.expedition` 与上述签名 MD5，开通 TapTap 登录与合规认证；补隐私政策/第三方 SDK 清单；真机回归登录、实名、时段限制、切号与退出后再升版本打包。
+- **星辉天赋**：用通关获得的星星点亮 6 条路线（行军补给、急行赏金、巧工机括、卫队鼓舞、整备回收、避风灯罩），可随时重置并返还星星；天赋与已见炮塔写入本地存档，旧存档自动兼容。[天赋数据](src/content/talents.ts) · [天赋 UI](src/ui/talents.ts) · [天赋美术](src/render/talent-art.ts) · [存档](src/platform/save.ts)
+- **天气实战效果**：强风/大雨/雷暴/沙暴/熔烬/暴风雪/毒暴现在会实际影响炮塔射速或射程、怪物移速或减伤，天气徽章显示效果摘要；避风灯罩可减轻恶劣天气对炮塔的削弱。[天气参数](src/content/weather.ts) · [战斗应用](src/engine/defense.ts) · [HUD 接入](src/ui/battle.ts)
+- **音频/表现**：小 Boss/Boss 技能音效分层，天赋、天气和毒沼相关美术同步更新。
+- 验证：`tests/talents-weather.test.ts` 覆盖天赋、存档、天气效果；全套 125 项测试通过。
+
+### 闯关制地图与解锁动画（v1.1.0）
+
+- 解锁规则：以已通关最远关卡为边界，只显示该关卡及下一站；旧存档按最高已通关关卡保留进度。区域标签、地区页签和地区关卡按钮同步隐藏未解锁内容。
+- 清关返回地图后，新节点以缩放/发光动画出现，区域标签与页签同步入场；探路者沿真实小径曲线走到新站点，完成后自动选中新关并显示“新站点已解锁”。
+- 主要改动：[campaign.ts](src/ui/campaign.ts) 的可见性/推进逻辑、[world.ts](src/render/world.ts) 导出的 `trailPoint()`、[scene.css](src/ui/scene.css) 的节点/区域/光环动画、[campaign.ts](src/content/campaign.ts) 的 `unlockedThroughIndex()`。
+- 验证：桌面端用受控存档验证了普通下一站与跨区域解锁；Android 真机确认现有进度只显示到第 11 关。当前测试 125 项。
+- 已包含在 `outputs/glimmer-defense-1.1.0-debug.apk`。
 
 ### 炮塔整体平衡（v1.0.0）
 
@@ -43,7 +153,7 @@
 - 盐釉投罐塔重做：基础档 36/1.85、50/1.7、64/1.55；厚釉破甲改为 82/1.45；分罐盐雨每罐 64/1.55。分罐仍最多两罐，每个敌人每轮最多承受一次冲击；单地面目标时只投一罐。
 - 雪天仅降低炮塔射速，不再补偿伤害。
 - 高频专精间隔拉长约 6%：碎晶尖塔 0.60→0.64、散网 0.61→0.65、聚束 0.62→0.66、折光 0.61→0.65、散火炉 0.66→0.70、连霜齐射 0.66→0.70；弩箭连发保持 0.26。
-- 普通怪物减速上限从 45% 提高到 50%（`MIN_ENEMY_PACE 0.55→0.50`），大小 Boss 仍为 25%；123 项测试通过。[塔数值](src/content/towers.ts) · [慢速上限](src/engine/enemy-abilities.ts)
+- 普通怪物减速上限从 45% 提高到 50%（`MIN_ENEMY_PACE 0.55→0.50`），大小 Boss 仍为 25%；当前 125 项测试通过。[塔数值](src/content/towers.ts) · [慢速上限](src/engine/enemy-abilities.ts)
 
 ### 霜脊雪天重做（v1.0.0）
 
@@ -195,8 +305,10 @@
 
 | 优先级 | 状态 | 事项 | 接手入口 |
 | --- | --- | --- | --- |
-| P1 | 待控制台/真机 | **TapTap 防沉迷真机接入**：在开发者中心配置包名 `com.mosslight.expedition`、签名 MD5 `fbfb01bc39311e4668366a941762372d`，开通 TapTap 登录与合规认证；补隐私政策/SDK 清单；验证登录、实名、`500/1001/1030/1050/1100/1200/9002` 回调、切号与退出。 | [src/platform/anti-addiction.ts](src/platform/anti-addiction.ts)、[TapAntiAddictionPlugin.java](android/app/src/main/java/com/mosslight/expedition/TapAntiAddictionPlugin.java) |
-| P1 | 待真机验证 | **Android 真机回归**：覆盖安装校验旧存档/星级/编队/音量无损迁移；检查横屏刘海安全区、双指 1–3 倍缩放、右侧选敌分段栏、机关两步预览确认、第 12 关连点破冰手感及第 9/12/13 关大波次帧率。 | [src/platform/save.ts](src/platform/save.ts)、[src/ui/battle-viewport.ts](src/ui/battle-viewport.ts)、[src/ui/scene.css](src/ui/scene.css) |
+| P1 | 待真机验证 | **v1.1.1 真机回归**：覆盖安装校验旧存档/星级/编队/音量/天赋无损迁移；检查横屏刘海安全区、双指 1–3 倍缩放、天赋面板、天气效果提示、第 12 关连点破冰及第 9/12/13 关大波次帧率。 | [src/platform/save.ts](src/platform/save.ts)、[src/ui/talents.ts](src/ui/talents.ts)、[src/ui/battle.ts](src/ui/battle.ts)、[src/ui/battle-viewport.ts](src/ui/battle-viewport.ts) |
+| P1 | 部分完成 | **TapDB 真机与后台联调**：真机已确认初始化、匿名安装 ID、撤回/重开、冷启动复用及 `stage_start` 进入原生层；仍需在 TapTap 后台确认数据到达、补测其余事件，并将营收模式改为“无”。 | [TapDBPlugin.java](android/app/src/main/java/com/mosslight/expedition/TapDBPlugin.java)、[analytics.ts](src/platform/analytics.ts)、[HANDOFF 第 2 节](#tapdb-v4-接入2026-11-25源码接入完成) |
+| P1 | 待同步 | **线上隐私政策**：游戏内已改为本地弹窗，但商店/备案地址仍是旧通用模板，必须发布当前 [privacy-policy.html](docs/privacy-policy.html)。运营者名称需与 TapTap 认证主体一致。 | [隐私政策](docs/privacy-policy.html) |
+| P1 | 阻塞 | **正式上线资质**：无 ISBN/版号时只能开放试玩；防沉迷已移除；当前 APK 为 Debug 签名；`MobCat的工作室` 需与 TapTap 认证主体一致。正式发行需恢复防沉迷、补版号/资质、改用 Release 签名并同步后台签名 MD5。 | [AndroidManifest.xml](android/app/src/main/AndroidManifest.xml)、[build.gradle](android/app/build.gradle)、[隐私政策](docs/privacy-policy.html) |
 | P3 | 待选型 | **新炮塔候选**：铺钉塔、回旋叶塔、导灯塔、孢匣塔仍处于设计候选阶段，需用户拍板后再实现。 | [design/tower-candidates.md](design/tower-candidates.md) |
 
 ---
@@ -285,16 +397,16 @@
 
 | 路径 | 用途 |
 | --- | --- |
-| [`src/content/`](src/content/) | 18 关正式配置（`levels/`）、18 站主线与首次出场（`campaign.ts`）、炮塔与拦截（`towers.ts`）、怪物（`enemies.ts`、`regional-enemies.ts`）、天气（`weather.ts`） |
+| [`src/content/`](src/content/) | 18 关正式配置（`levels/`）、18 站主线与首次出场（`campaign.ts`）、炮塔与拦截（`towers.ts`）、怪物（`enemies.ts`、`regional-enemies.ts`）、天气（`weather.ts`）、星辉天赋（`talents.ts`） |
 | [`src/engine/`](src/engine/) | 战斗主循环（`defense.ts`）、拦截单位与脱战回血（`guards.ts`）、怪物技能（`enemy-abilities.ts`）、编队与路线（`formation.ts`、`route.ts`）、近战与震地/扫击（`melee.ts`）、机关（`devices.ts`） |
 | [`src/render/`](src/render/) | 画布与地形（`battlefield.ts`、`terrain.ts`、`landforms.ts`）、炮塔与专精（`tower-art.ts`、`tower-specializations.ts`、`turrets.ts`、`tower-life.ts`）、拦截建筑与单位（`guards.ts`、`griffin.ts`、`regional-interceptors.ts`、`interceptor-upgrade.ts`）、怪物与特效（`sprites.ts`、`enemy-atlas.ts`、`region-grunts.ts`、`regional-minibosses.ts`、`sunmirror-enemies.ts`、`frost-creatures.ts`、`frost-boss.ts`、`mire-creatures.ts`、`mire-crawlers.ts`、`late-game.ts`、`animation.ts`、`combat-details.ts`、`unit-life.ts`、`quality.ts`） |
-| [`src/ui/`](src/ui/) | 战斗交互（`battle.ts`）、缩放视口（`battle-viewport.ts`）、主地图（`campaign.ts`）、编队（`loadout.ts`）、机关按钮（`devices.ts`）、防沉迷门禁（`anti-addiction.ts`）、样式（`scene.css`、`styles.css`） |
-| [`src/platform/`](src/platform/) | 存档与迁移（`save.ts`、`storage.ts`）、音效与 BGM（`audio.ts`）、前后台生命周期（`lifecycle.ts`）、TapTap 防沉迷桥接（`anti-addiction.ts`） |
-| [`tests/`](tests/) | 8 组共 123 项自动回归测试，毒沼机制与新塔实战用例位于 `mire-expansion.test.ts`，防沉迷门禁用例位于 `anti-addiction.test.ts` |
+| [`src/ui/`](src/ui/) | 战斗交互（`battle.ts`）、缩放视口（`battle-viewport.ts`）、主地图（`campaign.ts`）、编队（`loadout.ts`）、机关按钮（`devices.ts`）、星辉天赋（`talents.ts`）、样式（`scene.css`、`styles.css`） |
+| [`src/platform/`](src/platform/) | 存档与迁移（`save.ts`、`storage.ts`）、音效与 BGM（`audio.ts`）、前后台生命周期（`lifecycle.ts`） |
+| [`tests/`](tests/) | 11 组共 153 项自动回归测试，含毒沼、天赋/天气、分析同意、评价授权与全解锁存档隔离；闯关推进位于 `progression.test.ts`，全解锁位于 `debug-build.test.ts` |
 | [`design/`](design/) | 可编辑的音频脚本、怪物素材生成脚本、炮塔候选说明，以及 `unit-motion/`、`tower-motion/`、`enemy-candidates/` 预览工具 |
-| [`docs/`](docs/) | 美术资源清单（`new-art-assets.md`）与 `previews/` 关键版本静态参考图 |
+| [`docs/`](docs/) | 美术资源清单（`new-art-assets.md`）、隐私政策草稿（`privacy-policy.html`）与 `previews/` 关键版本静态参考图 |
 | [`android/`](android/) | Capacitor Android 工程 |
-| [`outputs/store/`](outputs/store/) | 商店文案与素材 |
+| [`outputs/store/`](outputs/store/) | 商店文案、素材与 v1.1.0 更新说明（`update-notes-v1.1.0.md`） |
 | `work/`（开发机本地） | 本机 Android SDK、Gradle 缓存、调试签名（`work/android-user/debug.keystore`）及历史归档（`work/archive/`） |
 
 ### 7.2 常见改动速查
@@ -308,11 +420,25 @@
 ## 8. Android 打包与版本管理
 
 - **应用标识**：包名 `com.mosslight.expedition`，SDK `compile/target 36`、`min 24`，横屏 + 沉浸式刘海适配（[AndroidManifest.xml](android/app/src/main/AndroidManifest.xml)、[MainActivity.java](android/app/src/main/java/com/mosslight/expedition/MainActivity.java)）。
-- **签名保留**：所有测试包统一使用 `work/android-user/debug.keystore`，确保覆盖安装不丢存档。当前证书 MD5 为 `fbfb01bc39311e4668366a941762372d`，需与 TapTap 开发者中心填写的签名一致。
-- **TapTap 调试包（未归档）**：`android/app/build/outputs/apk/debug/app-debug.apk` 已含 TapSDK 4.11.1，约 36 MB，`versionCode=25`，SHA-256 `5d55fa77a51e03922dfce40b52cd87e54a4417ee84bc462718dcd590bea57d21`。`outputs/glimmer-defense-1.0.0-debug.apk` 仍是未接入 SDK 的正式 v1.0.0。
-- **TapSDK 依赖缓存**：`tap-core/tap-login/tap-compliance:4.11.1` 与 `tap-common/tap-login-api/tap-compliance-api/tap-db/tap-themislite` 已下载到 `work/gradle`；首次解析需联网，之后可继续使用 `--offline`。
+- **签名保留**：所有测试包统一使用 `work/android-user/debug.keystore`，确保覆盖安装不丢存档。当前证书 MD5 为 `fbfb01bc39311e4668366a941762372d`。
+- **当前普通 Debug 包**：`outputs/glimmer-defense-1.1.3-debug.apk`，约 35 MB，`versionCode=34`，SHA-256 `27f617d4230d5d8b54c4403570bd64070746ad52d920486ba2d7416b232267b8`；与当前 `android/app/build/outputs/apk/debug/app-debug.apk` 一致。
+- **开发者全解锁包**：`outputs/glimmer-defense-1.1.3-debug-unlocked.apk`，约 35 MB，SHA-256 `a2d66ea1291ca4b8526994f22f8b05f35436ac7f7e8e6fa51de151a489860f53`。只用于开发调试，不能发布。
+- **隐私政策**：游戏内“首启同意页”和“系统设置 → 隐私政策”均读取内置本地正文，不跳转浏览器；线上地址 `https://www.xieyimao.com/doc/detailzh/token/1795569792_5229` 仍需同步发布最新 [privacy-policy.html](docs/privacy-policy.html)。
+- **TapDB 状态**：已接入 `com.taptap.sdk:tap-core:4.11.1` 与自定义 `TapDBPlugin`，仅网络/网络状态权限；不含 TapTap 登录、支付、电话状态权限或广告。真机已验证初始化、匿名安装 ID、撤回/重开与冷启动复用；TapTap 后台数据到达仍待核对。
+- **正式上线阻塞**：无 ISBN/版号只能开放试玩；防沉迷需恢复；Debug 签名需换 Release 并与 TapTap 后台一致；隐私政策运营者需与认证主体一致。
 - **开发机 APK 归档清单**（均在本地 `outputs/`）：
-  - `v1.0.0`（`versionCode=25`，当前最新已打包），SHA-256 为 `a2f6396464d1414287dc59ea26c4f0e22561c74a564031f0029913fc1809dd90`。本地归档为 `outputs/glimmer-defense-1.0.0-debug.apk`。
+  - `v1.1.3` 普通闯关版 SHA-256 `27f617d4230d5d8b54c4403570bd64070746ad52d920486ba2d7416b232267b8`。[glimmer-defense-1.1.3-debug.apk](outputs/glimmer-defense-1.1.3-debug.apk)
+  - `v1.1.3` 开发者全解锁版 SHA-256 `a2d66ea1291ca4b8526994f22f8b05f35436ac7f7e8e6fa51de151a489860f53`，禁止发布。[glimmer-defense-1.1.3-debug-unlocked.apk](outputs/glimmer-defense-1.1.3-debug-unlocked.apk)
+  - `v1.1.2` 普通闯关版 SHA-256 `577aca6a686ffadb4a92808ed758efb9b018028be58f77d76451215d754d3f61`。[glimmer-defense-1.1.2-debug.apk](outputs/glimmer-defense-1.1.2-debug.apk)
+  - `v1.1.1` 真机已验证普通包（TapDB + 本地隐私政策）SHA-256 `31d3158a9d6c0329c67f05e8fd3cc0335e9c6274354d4b17212201f459f7f51d`。[glimmer-defense-1.1.1-tapdb-debug.apk](outputs/glimmer-defense-1.1.1-tapdb-debug.apk)
+  - `v1.1.1` TapDB 接入前旧基线，SHA-256 为 `a7a9a1ffb1534e26dc42c9d84b769b34caad362ec849c06621f800927962dec3`。[glimmer-defense-1.1.1-debug.apk](outputs/glimmer-defense-1.1.1-debug.apk)
+  - `v1.1.0`（`versionCode=31`），SHA-256 为 `f5b38df0be80b401de360af11a4a7301dd40b4f14bf2daa3452734366aac5de6`。[glimmer-defense-1.1.0-debug.apk](outputs/glimmer-defense-1.1.0-debug.apk)
+  - `v1.0.5`（`versionCode=30`），SHA-256 为 `5db994857b69a8f85f29a22479a0c8d3c913b3afb65f36958f571fb00fbcac3e`。[glimmer-defense-1.0.5-debug.apk](outputs/glimmer-defense-1.0.5-debug.apk)
+  - `v1.0.4`（`versionCode=29`，旧隐私政策包），SHA-256 为 `a1b740f8156fe4727d5bfe3f859b01599da0735616e8adc02ad9b6fe83076f83`。[glimmer-defense-1.0.4-debug.apk](outputs/glimmer-defense-1.0.4-debug.apk)
+  - `v1.0.3`（`versionCode=28`，无防沉迷），SHA-256 为 `d238e79e5179acdf166f547b64804718a572f8cfdd3d659d8fdab17fd10b9396`。[glimmer-defense-1.0.3-debug.apk](outputs/glimmer-defense-1.0.3-debug.apk)
+  - `v1.0.2`（`versionCode=27`，旧审核测试包，含防沉迷），SHA-256 为 `f6fba1513d2ee750da6fa9e83c8f844e3c4709668392953185a432f317ecbdd8`。[glimmer-defense-1.0.2-debug.apk](outputs/glimmer-defense-1.0.2-debug.apk)
+  - `v1.0.1`（`versionCode=26`），SHA-256 为 `9ab5c15c053c6f61095043f96747554ee8f77f72579b1c83d4289f41ed76dc96`。[glimmer-defense-1.0.1-debug.apk](outputs/glimmer-defense-1.0.1-debug.apk)
+  - `v1.0.0`（`versionCode=25`），SHA-256 为 `a2f6396464d1414287dc59ea26c4f0e22561c74a564031f0029913fc1809dd90`。本地归档为 `outputs/glimmer-defense-1.0.0-debug.apk`。
   - `v0.7.1`（`versionCode=24`），SHA-256 为 `28b9807e84cbe62d4ec2a23e8011bd077333c878536e378d00dd0fe5ecd10be6`。本地归档为 `outputs/glimmer-defense-0.7.1-debug.apk`。
   - `v0.7.0`（`versionCode=23`），SHA-256 为 `cbfe0563edc3c476954b3397a3f0931161c82161c710cef796b220247ea860e5`。本地归档为 `outputs/glimmer-defense-0.7.0-debug.apk`。
   - `v0.6.9`（`versionCode=22`），SHA-256 为 `86d5280305838e77618d55f3651010ede883ff9b8dfbb82a1c87772524049432`。本地归档为 `outputs/glimmer-defense-0.6.9-debug.apk`。
@@ -323,14 +449,14 @@
   - 历史归档包：`v0.6.4`（17）、`v0.6.3`（16）、`v0.6.2`（15）、`v0.6.1`（14）、`v0.6.0`（13）、`v0.5.0-specializations`（12）、`v0.5.0`（11）、`v0.4.3`（10）、`v0.4.2-ui-fix`（9）、`v0.4.2`（8）、`v0.4.1`。
 - **打包新版本标准流程**：
   1. 递增 `package.json`、`package-lock.json` 版本号与 `android/app/build.gradle` 中 `versionCode` / `versionName`。
-  2. 运行全量校验并同步 Web 资源：`npm test && npm run mobile:sync`
-  3. 使用 `npm run apk:debug` 构建。已配置离线缓存和固定签名的开发机也可使用以下命令：
+  2. 运行全量校验：`npm test && npm run typecheck`。
+  3. 构建普通包（TapDB 凭据放在 `work/gradle/gradle.properties`，不要提交）：`npm run apk:debug`。开发机建议使用：
      ```sh
      env JAVA_HOME="$(/usr/libexec/java_home -v 21)" \
        ANDROID_HOME="$PWD/work/android-sdk" \
        ANDROID_USER_HOME="$PWD/work/android-user" \
        GRADLE_USER_HOME="$PWD/work/gradle" \
-       ./android/gradlew -p android --offline \
-       --init-script "$PWD/work/maven-routing.init.gradle" :app:assembleDebug
+       npm run apk:debug
      ```
-  4. 复制 `android/app/build/outputs/apk/debug/app-debug.apk` 到 `outputs/glimmer-defense-<version>-debug.apk`，用 `work/android-sdk/build-tools/35.0.0/apksigner verify --print-certs` 与 `shasum -a 256` 校验后停止 Gradle Daemon（`./android/gradlew -p android --stop`）并更新本节记录。
+  4. 需要全关卡三星调试包时，运行同一环境下的 `npm run apk:debug-unlocked`，复制产物为 `glimmer-defense-<version>-debug-unlocked.apk` 后，必须再运行普通 `npm run apk:debug`，恢复 `app-debug.apk` 为正式闯关逻辑。
+  5. 复制正常包到 `outputs/glimmer-defense-<version>-debug.apk` 或带用途后缀的文件名，用 `apksigner verify --print-certs` 与 `shasum -a 256` 校验后停止 Gradle Daemon（`./android/gradlew -p android --stop`），更新本节记录。不要把全解锁包当作正式包归档。

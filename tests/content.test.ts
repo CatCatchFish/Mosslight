@@ -295,15 +295,19 @@ test("tower access grows by stage and introductions contain only first appearanc
   assert.deepEqual([...newlyIntroduced("11")].sort(), ["mirror-ibex", "snowbrush-fox"]);
   assert.deepEqual([...newlyIntroduced("12")].sort(), ["blizzard-elk", "frost-bear", "frost-moose", "frost-owl", "frost-yeti", "rime-golem"]);
   assert.deepEqual([...newlyIntroduced("13")].sort(), ["bloat-sporer", "mire-croc", "mire-mycelid", "mire-treant", "vine-viper"]);
-  assert.deepEqual([...newlyIntroduced("14")].sort(), ["mudskipper", "whisker-catfish"]);
+  assert.deepEqual([...newlyIntroduced("14")].sort(), ["mire-elder", "mudskipper", "whisker-catfish"]);
   assert.deepEqual([...newlyIntroduced("15")].sort(), ["shield-crayfish", "stone-clam"]);
   assert.deepEqual([...newlyIntroduced("16")], ["lantern-moth"]);
-  assert.deepEqual([...newlyIntroduced("17")].sort(), ["reed-spider", "reed-spiderling", "spider-egg"]);
+  assert.deepEqual([...newlyIntroduced("17")].sort(), ["mire-matriarch", "reed-spider", "reed-spiderling", "spider-egg", "spore-pod"]);
   assert.deepEqual([...newlyIntroduced("18")], ["sluice-dragon"]);
   assert(!PLAYABLE_LEVELS["13"].towers.includes("reed-post"));
   assert(PLAYABLE_LEVELS["14"].towers.includes("reed-post"));
   assert(!PLAYABLE_LEVELS["14"].towers.includes("salt-caster"));
   assert(PLAYABLE_LEVELS["15"].towers.includes("salt-caster"));
+  assert(!PLAYABLE_LEVELS["15"].towers.includes("spore-caster"));
+  assert(PLAYABLE_LEVELS["16"].towers.includes("spore-caster"));
+  assert(PLAYABLE_LEVELS["17"].towers.includes("spore-caster"));
+  assert(PLAYABLE_LEVELS["18"].towers.includes("spore-caster"));
 });
 
 test("enemies from earlier regions do not appear in later regions", () => {

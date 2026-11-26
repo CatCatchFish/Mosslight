@@ -51,11 +51,14 @@ const SQUAD_SIZE: Record<EnemyId, number> = {
   mudskipper: 3,
   "shield-crayfish": 2,
   "lantern-moth": 2,
-  "whisker-catfish": 1,
+  "whisker-catfish": 2,
   "stone-clam": 1,
   "reed-spider": 1,
   "spider-egg": 1,
   "reed-spiderling": 2,
+  "mire-elder": 1,
+  "mire-matriarch": 1,
+  "spore-pod": 1,
   "sluice-dragon": 1,
 };
 const MARCH_OFFSETS = [-0.4, 0.4, -0.18, 0.18] as const;

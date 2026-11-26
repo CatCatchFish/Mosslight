@@ -2,6 +2,7 @@ import type { GameAudio, Soundtrack } from "../platform/audio.ts";
 import type { SaveStore } from "../platform/save.ts";
 import { setArtQuality } from "../render/quality.ts";
 import type { ArtQuality } from "../render/quality.ts";
+import { openPrivacyPolicy } from "./privacy-policy.ts";
 import { $, requiredChild } from "./dom.ts";
 
 export function mountSettings(
@@ -24,6 +25,7 @@ export function mountSettings(
       ? "退出会结束当前战斗。已获得的关卡评级和设置会保留。"
       : "已获得的关卡评级和设置会保留。";
     dialog.showModal();
+    audio.playUi("ui-open");
   }
 
   function updateToggle(id: "music" | "audio" | "ambience", enabled: boolean) {
@@ -62,6 +64,7 @@ export function mountSettings(
   const exitDialog = $("exit-dialog");
   const confirmExit = $("confirm-exit");
   $("exit-game").addEventListener("click", () => exitDialog.showModal());
+  $("privacy-policy").addEventListener("click", openPrivacyPolicy);
   confirmExit.addEventListener("click", async () => {
     confirmExit.disabled = true;
     try {
@@ -115,5 +118,11 @@ export function mountSettings(
   bindVolume("sound", "soundVolume", (volume) => audio.setVolume(volume), () => {
     void audio.resume().then(() => audio.play("interact")).catch(() => {});
   });
-  document.addEventListener("click", () => music.unlock());
+  const unlockAudio = () => {
+    music.unlock();
+    if (audio.enabled) void audio.resume().catch(() => {});
+  };
+  for (const event of ["pointerdown", "click", "keydown"] as const) {
+    document.addEventListener(event, unlockAudio, { capture: true, passive: true });
+  }
 }
